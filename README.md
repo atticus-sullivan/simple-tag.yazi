@@ -54,7 +54,9 @@ require("simple-tag"):setup({
   -- icon,text,hidden indicator.
   ui_mode = "icon", -- (Optional)
 
-  -- Tag icon. Only show when ui_mode = "icon"
+  -- Tag icon. Only show when ui_mode = "icon".
+  -- Default icon from mactag.yazi: ●; , , 󱈤
+  -- More icon from nerd fonts: https://www.nerdfonts.com/cheat-sheet
   icon = "󰚋", -- (Optional)
 
   -- linemode order: icon/text indicator position if linemode
