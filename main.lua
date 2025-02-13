@@ -43,7 +43,7 @@ local STATE_KEY = {
 	colors = "colors",
 	save_path = "save_path",
 	tags_database = "tags_database",
-	icon = "icon",
+	icons = "icons",
 	linemode_order = "linemode_order",
 }
 
@@ -293,18 +293,21 @@ function M:setup(opts)
 			or (os.getenv("HOME") .. "/.config/yazi/tags")
 	)
 	st[STATE_KEY.tags_database] = {}
-	st[STATE_KEY.icon] = DEFAULT_TAG_ICON
 	st[STATE_KEY.ui_mode] = UI_MODE.icon
 	st[STATE_KEY.colors] = {}
+	st[STATE_KEY.icons] = {
+		default = DEFAULT_TAG_ICON,
+	}
 	st[STATE_KEY.linemode_order] = DEFAULT_LINEMODE_ORDER
 	if type(opts) == "table" then
 		st[STATE_KEY.ui_mode] = opts.ui_mode or st[STATE_KEY.ui_mode]
 		st[STATE_KEY.save_path] = pathJoin(opts.save_path or save_path)
 		st[STATE_KEY.colors] = opts.colors or st[STATE_KEY.colors]
-		st[STATE_KEY.icon] = opts.icon or st[STATE_KEY.icon]
+		st[STATE_KEY.icons] = ya.dict_merge(st[STATE_KEY.icons], opts.icons or {})
 		st[STATE_KEY.linemode_order] = tonumber(opts.linemode_order) or st[STATE_KEY.linemode_order]
 	end
 
+	ya.err(st[STATE_KEY.icons])
 	-- render tags
 	Linemode:children_add(function(_self)
 		if st[STATE_KEY.ui_mode] == UI_MODE.hidden then
@@ -332,7 +335,8 @@ function M:setup(opts)
 					style:fg(st[STATE_KEY.colors][tag] and st[STATE_KEY.colors][tag] or "reset")
 				end
 				if st[STATE_KEY.ui_mode] == UI_MODE.icon then
-					spans[#spans + 1] = ui.Span(" " .. st[STATE_KEY.icon]):style(style)
+					spans[#spans + 1] = ui.Span(" " .. (st[STATE_KEY.icons][tag] or st[STATE_KEY.icons].default))
+						:style(style)
 				elseif st[STATE_KEY.ui_mode] == UI_MODE.text then
 					spans[#spans + 1] = ui.Span(" " .. tag):style(style):bold()
 				end

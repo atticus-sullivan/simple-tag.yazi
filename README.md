@@ -54,11 +54,6 @@ require("simple-tag"):setup({
   -- icon,text,hidden indicator.
   ui_mode = "icon", -- (Optional)
 
-  -- Tag icon. Only show when ui_mode = "icon".
-  -- Default icon from mactag.yazi: ●; , , 󱈤
-  -- More icon from nerd fonts: https://www.nerdfonts.com/cheat-sheet
-  icon = "󰚋", -- (Optional)
-
   -- linemode order: icon/text indicator position if linemode
   -- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-plugin/preset/components/linemode.lua#L4-L5
   linemode_order = 500 -- (Optional)
@@ -82,6 +77,22 @@ require("simple-tag"):setup({
 		["a"] = "#e80920", -- (Optional)
 		-- ... any keys
 	},
+
+  -- Tag icons. Only show when ui_mode = "icon".
+  -- Any text or nerdfont icons should work
+  -- Default icon from mactag.yazi: ●; , , 󱈤
+  -- More icon from nerd fonts: https://www.nerdfonts.com/cheat-sheet
+  icons = {
+    -- default icon
+		default = "󰚋",
+		-- Add icon "*" tag for tag key = "*".
+		["*"] = "*",
+		-- Add icon tag for tag key = "$"
+		["$"] = "",
+		-- Add icon tag for tag key = "!"
+		["!"] = "",
+  }, -- (Optional)
+
 })
 ```
 
