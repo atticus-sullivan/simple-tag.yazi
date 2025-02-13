@@ -39,11 +39,11 @@ ya pack -a boydaihungst/simple-tag
 
 - Tag icon indicator:
 
-![tag_with_icon](assets/2025-02-13-19-08-27.png)
+![tag_with_icon](assets/2025-02-13-21-17-07.png)
 
 - Tag text indicator a.k.a tag key
 
-![tag_with_tag_key](assets/2025-02-13-19-06-59.png)
+![tag_with_tag_key](assets/2025-02-13-21-17-56.png)
 
 ### Add setup function in `yazi/init.lua`.
 
@@ -72,10 +72,13 @@ require("simple-tag"):setup({
 		reversed = true, -- (Optional)
 
 		-- color for tag by tag key = "*". More colors: https://yazi-rs.github.io/docs/configuration/theme#types.color
-		["*"] = "green", -- (Optional)
-		-- color for tag by tag key = "a". Hex
-		["a"] = "#e80920", -- (Optional)
-		-- ... any keys
+		["*"] = "#bf68d9", -- (Optional)
+		-- color for tag with key = "$"
+		["$"] = "green",
+		["!"] = "#cc9057",
+		-- color for tag with key = "1"
+		["1"] = "cyan",
+		["p"] = "red",
 	},
 
   -- Tag icons. Only show when ui_mode = "icon".
@@ -91,6 +94,7 @@ require("simple-tag"):setup({
 		["$"] = "",
 		-- Add icon tag for tag key = "!"
 		["!"] = "",
+		["p"] = "",
   }, -- (Optional)
 
 })
