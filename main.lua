@@ -307,7 +307,6 @@ function M:setup(opts)
 		st[STATE_KEY.linemode_order] = tonumber(opts.linemode_order) or st[STATE_KEY.linemode_order]
 	end
 
-	ya.err(st[STATE_KEY.icons])
 	-- render tags
 	Linemode:children_add(function(_self)
 		if st[STATE_KEY.ui_mode] == UI_MODE.hidden then
