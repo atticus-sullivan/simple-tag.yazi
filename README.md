@@ -56,7 +56,7 @@ require("simple-tag"):setup({
 
   -- linemode order: icon/text indicator position if linemode
   -- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-plugin/preset/components/linemode.lua#L4-L5
-  linemode_order = 500 -- (Optional)
+  linemode_order = 500, -- (Optional)
 
 
   -- You can backup/restore this folder. But don't use same folder in the different OS.
@@ -65,27 +65,27 @@ require("simple-tag"):setup({
   --       - Windows: os.getenv("APPDATA") .. "\\yazi\\config\\tags"
 
   -- Set colors for tag icon|text
-	colors = { -- (Optional)
-		-- Set this same with value `theme.toml` > [manager] > hovered > reversed
-		-- Default theme use "reversed = true".
-		-- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-config/preset/theme-dark.toml#L25
-		reversed = true, -- (Optional)
-
-		-- color for tag by tag key = "*". More colors: https://yazi-rs.github.io/docs/configuration/theme#types.color
-		["*"] = "#bf68d9", -- (Optional)
-		-- color for tag with key = "$"
-		["$"] = "green",
-		["!"] = "#cc9057",
-		-- color for tag with key = "1"
-		["1"] = "cyan",
-		["p"] = "red",
-	},
+  colors = { -- (Optional)
+	-- Set this same with value `theme.toml` > [manager] > hovered > reversed
+	-- Default theme use "reversed = true".
+	-- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-config/preset/theme-dark.toml#L25
+	reversed = true, -- (Optional)
+	
+	-- color for tag by tag key = "*". More colors: https://yazi-rs.github.io/docs/configuration/theme#types.color
+	["*"] = "#bf68d9", -- (Optional)
+	-- color for tag with key = "$"
+	["$"] = "green",
+	["!"] = "#cc9057",
+	-- color for tag with key = "1"
+	["1"] = "cyan",
+	["p"] = "red",
+  },
 
   -- Tag icons. Only show when ui_mode = "icon".
   -- Any text or nerdfont icons should work
   -- Default icon from mactag.yazi: ●; , , 󱈤
   -- More icon from nerd fonts: https://www.nerdfonts.com/cheat-sheet
-  icons = {
+  icons = { -- (Optional)
     -- default icon
 		default = "󰚋",
 		-- Add icon "*" tag for tag key = "*".
@@ -95,7 +95,7 @@ require("simple-tag"):setup({
 		-- Add icon tag for tag key = "!"
 		["!"] = "",
 		["p"] = "",
-  }, -- (Optional)
+  },
 
 })
 ```
