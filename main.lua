@@ -212,6 +212,22 @@ local function tbl_exclude(array1, array2)
 	return result
 end
 
+local function tbl_is_subset(small, large)
+	local lookup = {}
+
+	for _, v in ipairs(large) do
+		lookup[v] = true
+	end
+
+	for _, v in ipairs(small) do
+		if not lookup[v] then
+			return false
+		end
+	end
+
+	return true
+end
+
 local get_cwd = ya.sync(function()
 	return tostring(cx.active.current.cwd)
 end)
@@ -284,6 +300,24 @@ function M:fetch(job)
 	set_state(STATE_KEY.tags_database, tags_db)
 	render()
 	return true
+end
+
+function M:has_tags(file, tags_filter)
+	local url
+	if type(file) == "string" then
+		url = Url(file)
+	else
+		url = file.url
+	end
+	local tags_tbl = tostring(url:parent())
+	local fname = tostring(url:name())
+
+	local tags_database = get_state(STATE_KEY.tags_database)
+	if tags_database[tags_tbl] and tags_database[tags_tbl][fname] then
+		local tags = tags_database[tags_tbl][fname] or {}
+		return tbl_is_subset(tags_filter, tags)
+	end
+	return false
 end
 
 function M:setup(opts)
