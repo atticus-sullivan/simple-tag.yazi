@@ -156,14 +156,15 @@ Or you can use `keymap` to replace all other keys
     #       Well,  it depends on your system and the length of file's name.
     { on = [ "t", "f" ], run = "plugin simple-tag -- filter", desc = "Filter files by a tag (press any key)" },
     # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!", desc = "Filter files by tag = !" },
-    # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!1q", desc = "Filter files by multiple tags (! or 1 or q)" },
+    # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!1q", desc = "Filter files by multiple tags (! and 1 and q)" },
+
     # This will open an input box to input multiple tags, don't add any delimiter.
-    # Example: input value = !1q -> filter any files with tags contain ! or 1 or q
+    # --mode=and (Default) -> Input value or --keys = !1q -> filter any files contain (! and 1 and q) tags
     { on = [ "t", "F" ], run = "plugin simple-tag -- filter --input", desc = "Filter files by multiple tags (input box)" },
 
-    # mode=and (Default) -> Input value or --keys = !1q -> filter any files with tags contain all 3 tags (! 1 q)
-    # mode=or -> Input value or --keys = !1q -> filter any files with tags contain at least one of these 3 tags (! 1 q)
+    # --mode=or -> Input value or --keys = !1q -> filter any files contain at least one of these tags (! or 1 or q)
     { on = [ "t", "F" ], run = "plugin simple-tag -- filter --input --mode=or", desc = "Filter files by contain tags (input box)" },
+
     # Fixed tag indicator mode = hidden (Available modes: hidden|icon|text)
     { on = [ "T", "h" ], run = "plugin simple-tag -- toggle-ui --mode=hidden", desc = "Hide all tags indicator" },
 
