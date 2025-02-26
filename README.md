@@ -35,15 +35,43 @@ ya pack -a boydaihungst/simple-tag
 > However, if you delete them using a different file manager or through the command line, then re-create them,
 > all tags will be restored. Using trash also retains tags, and only permanently deleting files/folders will clear the tags.
 
-### Prevews
+## Prevews
 
-- Tag icon indicator:
+- Toggle tag with custom icons + colors:
 
-![tag_with_icon](assets/2025-02-13-21-17-07.png)
+![toggle noraml](https://github.com/user-attachments/assets/ce942a86-f9ea-4639-9543-c00e8b624597)
 
-- Tag text indicator a.k.a tag key
+- Tag icon/text/hidden indicator:
 
-![tag_with_tag_key](assets/2025-02-13-21-17-56.png)
+![toggle icon](https://github.com/user-attachments/assets/4208d1ef-31ce-40ef-92bc-2952a8319ee1)
+
+- Filter files by tags mode = and, with a tag key and input box:
+
+![filter_by_tags](https://github.com/user-attachments/assets/3117fe30-8078-4df8-81d6-e4794a2ffd57)
+
+- Visual selection files mode = replace, and undo/redo selection:
+
+![visual select file by tags](https://github.com/user-attachments/assets/6710f12b-752b-4b35-8145-d274cf470d60)
+
+- Visual selection mode = unite
+
+![unite mode](https://github.com/user-attachments/assets/2bbf6620-27bb-44bf-8062-538f5bc2da98)
+
+- Visual selection mode = intersect
+
+![intersect mode](https://github.com/user-attachments/assets/1b8f15d9-beeb-49ed-bafe-7236b63a38fe)
+
+
+- Visual selection mode = subtract
+
+![subtract](https://github.com/user-attachments/assets/8e1d66b8-c6e8-46c6-8a83-e3abfe9ca929)
+
+- Visual selection mode = exclude
+
+![exclude](https://github.com/user-attachments/assets/a8f8e168-df0b-489f-bc1b-2232afda6608)
+
+
+## Configuration
 
 ### Add setup function in `yazi/init.lua`.
 
