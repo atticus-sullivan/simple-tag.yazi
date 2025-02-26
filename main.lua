@@ -642,7 +642,7 @@ function M:entry(job)
 			end
 		end
 		query = "^(" .. query:sub(1, -2) .. ")$"
-		ya.manager_emit("filter_do", { query, smart = true, insensitive = false })
+		ya.manager_emit("filter_do", { query, smart = false, insensitive = false })
 	elseif action == "files-deleted" then
 		-- get changes tags
 		local changed_tags_db = {}
