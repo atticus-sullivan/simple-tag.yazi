@@ -161,6 +161,9 @@ Or you can use `keymap` to replace all other keys
     # Example: input value = !1q -> filter any files with tags contain ! or 1 or q
     { on = [ "t", "F" ], run = "plugin simple-tag -- filter --input", desc = "Filter files by multiple tags (input box)" },
 
+    # mode=and (Default) -> Input value or --keys = !1q -> filter any files with tags contain all 3 tags (! 1 q)
+    # mode=or -> Input value or --keys = !1q -> filter any files with tags contain at least one of these 3 tags (! 1 q)
+    { on = [ "t", "F" ], run = "plugin simple-tag -- filter --input --mode=or", desc = "Filter files by contain tags (input box)" },
     # Fixed tag indicator mode = hidden (Available modes: hidden|icon|text)
     { on = [ "T", "h" ], run = "plugin simple-tag -- toggle-ui --mode=hidden", desc = "Hide all tags indicator" },
 

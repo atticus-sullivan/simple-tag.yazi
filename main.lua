@@ -54,6 +54,12 @@ local UI_MODE = {
 	text = "text",
 }
 
+--@enum FILTER_MODE
+local FILTER_MODE = {
+	["or"] = "or",
+	["and"] = "and",
+}
+
 local UI_MODE_ORDERED = {
 	UI_MODE.hidden,
 	UI_MODE.icon,
@@ -578,6 +584,7 @@ function M:entry(job)
 	elseif action == "filter" then
 		local filter_tags = {}
 		local inputted_tags = job.args.keys
+		local filter_mode = job.args.mode or FILTER_MODE["and"]
 		local input_mode = job.args.input
 		if not inputted_tags then
 			local choice
@@ -603,18 +610,30 @@ function M:entry(job)
 
 		for _, code in utf8.codes(inputted_tags) do
 			local key = utf8.char(code)
-			filter_tags[key] = true
+			if filter_mode == FILTER_MODE["and"] then
+				table.insert(filter_tags, key)
+			else
+				filter_tags[key] = true
+			end
 		end
 
 		local tags_tbl = get_cwd()
 		local tags_db = get_state(STATE_KEY.tags_database)
 		local tagged_filenames = tags_db[tags_tbl] or {}
 		local query = ""
-		for fname, tags in pairs(tagged_filenames) do
-			for _, tag in ipairs(tags) do
-				if filter_tags[tag] then
+		if filter_mode == FILTER_MODE["and"] then
+			for fname, tags in pairs(tagged_filenames) do
+				if tbl_is_subset(filter_tags, tags) then
 					query = query .. fname .. "|"
-					break
+				end
+			end
+		else
+			for fname, tags in pairs(tagged_filenames) do
+				for _, tag in ipairs(tags) do
+					if filter_tags[tag] then
+						query = query .. fname .. "|"
+						break
+					end
 				end
 			end
 		end
