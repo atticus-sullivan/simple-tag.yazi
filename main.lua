@@ -478,7 +478,6 @@ end
 function M:entry(job)
 	local action = job.args[1]
 	ya.manager_emit("escape", { visual = true })
-
 	if action == "toggle-tag" then
 		local selected_tag_key = job.args.key
 		if selected_tag_key ~= nil and #tostring(selected_tag_key) ~= 1 then
@@ -576,6 +575,51 @@ function M:entry(job)
 		for _, url in ipairs(new_selected_files) do
 			ya.manager_emit("toggle", { Url(url), state = "on" })
 		end
+	elseif action == "filter" then
+		local filter_tags = {}
+		local inputted_tags = job.args.keys
+		local input_mode = job.args.input
+		if not inputted_tags then
+			local choice
+			if not input_mode then
+				choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
+				if not choice then
+					return
+				end
+				inputted_tags = CAND_TAG_KEYS[choice].on
+			else
+				local input_value, input_event = ya.input({
+					title = "Enter tags:",
+					position = { "center", w = 50 },
+				})
+
+				if input_event == 1 and input_value then
+					inputted_tags = input_value
+				else
+					return
+				end
+			end
+		end
+
+		for _, code in utf8.codes(inputted_tags) do
+			local key = utf8.char(code)
+			filter_tags[key] = true
+		end
+
+		local tags_tbl = get_cwd()
+		local tags_db = get_state(STATE_KEY.tags_database)
+		local tagged_filenames = tags_db[tags_tbl] or {}
+		local query = ""
+		for fname, tags in pairs(tagged_filenames) do
+			for _, tag in ipairs(tags) do
+				if filter_tags[tag] then
+					query = query .. fname .. "|"
+					break
+				end
+			end
+		end
+		query = "^(" .. query:sub(1, -2) .. ")$"
+		ya.manager_emit("filter_do", { query, smart = true, insensitive = false })
 	elseif action == "files-deleted" then
 		-- get changes tags
 		local changed_tags_db = {}

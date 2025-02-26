@@ -70,7 +70,7 @@ require("simple-tag"):setup({
 	-- Default theme use "reversed = true".
 	-- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-config/preset/theme-dark.toml#L25
 	reversed = true, -- (Optional)
-	
+
 	-- color for tag by tag key = "*". More colors: https://yazi-rs.github.io/docs/configuration/theme#types.color
 	["*"] = "#bf68d9", -- (Optional)
 	-- color for tag with key = "$"
@@ -139,14 +139,25 @@ Or you can use `keymap` to replace all other keys
 
     # Toggle tag with any key (press any key to toggle tag)
     # This won't show the which_key popup. Simply press any tag key to toggle that tag for selected or hovered files/folders.
-    # If the selected files/folders already have the pressed tag key, the tag will be removed from those files/folders.
-    { on = [ '~' ], run = "plugin simple-tag -- toggle-tag", desc = "Toggle tag with any key (press any key to toggle tag)" },
+    # If the selected files/folders already have the tag key, the tag will be removed from those files/folders.
+    { on = [ '~' ], run = "plugin simple-tag -- toggle-tag", desc = "Toggle tag with any key (press any key)" },
 
     # Fixed key = *
-    { on = [ "`" ], run = "plugin simple-tag -- toggle-tag --key=*", desc = "Toggle tag with tag key = *" },
+    { on = [ "`" ], run = "plugin simple-tag -- toggle-tag --key=*", desc = "Toggle tag with key = *" },
 
     # Switch tag indicator between icon > tag key > hidden.
+    # Useful when u don't remember the tag key
     { on = [ "t", "t" ], run = "plugin simple-tag -- toggle-ui", desc = "Toggle tag indicator (icon > tag key > hidden)" },
+
+    # Filter files by tags
+    # NOTE: This use a hacky way to filter files, so it may not work if there are too many files
+    #       (work just file if there are less than 5000 files)
+    { on = [ "t", "f" ], run = "plugin simple-tag -- filter", desc = "Filter files by a tag (press any key)" },
+    # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!", desc = "Filter files by tag = !" },
+    # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!1q", desc = "Filter files by multiple tags (! or 1 or q)" },
+    # This will open an input box to input multiple tags, don't add any delimiter.
+    # Example: input value = !1q -> filter any files with tags contain ! or 1 or q
+    { on = [ "t", "F" ], run = "plugin simple-tag -- filter --input", desc = "Filter files by multiple tags (input box)" },
 
     # Fixed tag indicator mode = hidden (Available modes: hidden|icon|text)
     { on = [ "T", "h" ], run = "plugin simple-tag -- toggle-ui --mode=hidden", desc = "Hide all tags indicator" },
