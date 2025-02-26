@@ -481,6 +481,10 @@ local function show_cands_ui_modes()
 	end
 end
 
+local function escape_regex(str)
+	return str:gsub("([%^$()%%.%[%]*+%-?{|}])", "\\%1")
+end
+
 function M:entry(job)
 	local action = job.args[1]
 	ya.manager_emit("escape", { visual = true })
@@ -624,14 +628,14 @@ function M:entry(job)
 		if filter_mode == FILTER_MODE["and"] then
 			for fname, tags in pairs(tagged_filenames) do
 				if tbl_is_subset(filter_tags, tags) then
-					query = query .. fname .. "|"
+					query = query .. escape_regex(fname) .. "|"
 				end
 			end
 		else
 			for fname, tags in pairs(tagged_filenames) do
 				for _, tag in ipairs(tags) do
 					if filter_tags[tag] then
-						query = query .. fname .. "|"
+						query = query .. escape_regex(fname) .. "|"
 						break
 					end
 				end
