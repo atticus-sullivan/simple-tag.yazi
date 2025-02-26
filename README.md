@@ -53,6 +53,11 @@ ya pack -a boydaihungst/simple-tag
 
 ![visual select file by tags](https://github.com/user-attachments/assets/6710f12b-752b-4b35-8145-d274cf470d60)
 
+The different between visual selection modes
+
+![2025-02-26T22:37:16,571334566+07:00](https://github.com/user-attachments/assets/548d6eae-ef92-4d55-ae00-0c154d2e1329)
+
+
 - Visual selection mode = unite
 
 ![unite mode](https://github.com/user-attachments/assets/2bbf6620-27bb-44bf-8062-538f5bc2da98)
