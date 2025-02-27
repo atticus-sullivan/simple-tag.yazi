@@ -57,7 +57,6 @@ The different between visual selection modes
 
 ![2025-02-26T22:37:16,571334566+07:00](https://github.com/user-attachments/assets/548d6eae-ef92-4d55-ae00-0c154d2e1329)
 
-
 - Visual selection mode = unite
 
 ![unite mode](https://github.com/user-attachments/assets/2bbf6620-27bb-44bf-8062-538f5bc2da98)
@@ -66,7 +65,6 @@ The different between visual selection modes
 
 ![intersect mode](https://github.com/user-attachments/assets/1b8f15d9-beeb-49ed-bafe-7236b63a38fe)
 
-
 - Visual selection mode = subtract
 
 ![subtract](https://github.com/user-attachments/assets/8e1d66b8-c6e8-46c6-8a83-e3abfe9ca929)
@@ -74,7 +72,6 @@ The different between visual selection modes
 - Visual selection mode = exclude
 
 ![exclude](https://github.com/user-attachments/assets/a8f8e168-df0b-489f-bc1b-2232afda6608)
-
 
 ## Configuration
 
@@ -87,10 +84,12 @@ require("simple-tag"):setup({
   -- icon,text,hidden indicator.
   ui_mode = "icon", -- (Optional)
 
+  -- Disable tag keys hints (the pop up window on the bottom right)
+	hints_disabled = false, -- (Optional)
+
   -- linemode order: icon/text indicator position if linemode
   -- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-plugin/preset/components/linemode.lua#L4-L5
   linemode_order = 500, -- (Optional)
-
 
   -- You can backup/restore this folder. But don't use same folder in the different OS.
   -- save_path =  -- full path to save tags folder (Optional)

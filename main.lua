@@ -4,6 +4,10 @@ local PackageName = "simple-tag"
 local M = {}
 
 
+--          ╭─────────────────────────────────────────────────────────╮
+--          │                          ENUM                           │
+--          ╰─────────────────────────────────────────────────────────╯
+
 -- stylua: ignore
 local CAND_TAG_KEYS = {
 	-- number + special characters
@@ -44,6 +48,8 @@ local STATE_KEY = {
 	save_path = "save_path",
 	tags_database = "tags_database",
 	icons = "icons",
+	hints_table = "hints_table",
+	hints_disabled = "hints_disabled",
 	linemode_order = "linemode_order",
 }
 
@@ -75,29 +81,10 @@ local SELECTION_MODE = {
 	UNDO = "undo",
 	REPLACE = "replace",
 }
-
-local set_state = ya.sync(function(state, key, value)
-	state[key] = value
-end)
-
-local get_state = ya.sync(function(state, key)
-	return state[key]
-end)
-
-local function success(s, ...)
-	if not get_state(STATE_KEY.no_notify) then
-		ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "info" })
-	end
-end
-
 ---@enum NOTIFY_MSG
 local NOTIFY_MSG = {
 	TAG_KEY_INVALID = "Tag key should be a single character",
 }
-
-local function fail(s, ...)
-	ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "error" })
-end
 
 ---@enum PUBSUB_KIND
 local PUBSUB_KIND = {
@@ -107,6 +94,28 @@ local PUBSUB_KIND = {
 	files_deleted = "delete",
 }
 
+--          ╭─────────────────────────────────────────────────────────╮
+--          │                        Utilities                        │
+--          ╰─────────────────────────────────────────────────────────╯
+
+local set_state = ya.sync(function(state, key, value)
+	state[key] = value
+end)
+
+local get_state = ya.sync(function(state, key)
+	return state[key]
+end)
+
+local function fail(s, ...)
+	ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "error" })
+end
+
+local function success(s, ...)
+	if not get_state(STATE_KEY.no_notify) then
+		ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "info" })
+	end
+end
+
 --- broadcast through pub sub to other instances
 ---@param _ table state
 ---@param pubsub_kind PUBSUB_KIND
@@ -115,6 +124,10 @@ local PUBSUB_KIND = {
 local broadcast = ya.sync(function(_, pubsub_kind, data, to)
 	ps.pub_to(to or 0, pubsub_kind, data)
 end)
+
+local function escape_regex(str)
+	return str:gsub("([%^$()%%.%[%]*+%-?{|}])", "\\%1")
+end
 
 local function pathJoin(...)
 	-- Detect OS path separator ('\' for Windows, '/' for Unix)
@@ -133,6 +146,25 @@ local function pathJoin(...)
 	path = path:gsub(separator .. "+", separator)
 
 	return path
+end
+
+local function ordered_pairs(tbl)
+	local keys = {} -- Store all keys in a separate table
+
+	for k in pairs(tbl) do
+		table.insert(keys, k)
+	end
+
+	table.sort(keys) -- Sort keys alphabetically (or numerically)
+
+	local i = 0
+	return function()
+		i = i + 1
+		local key = keys[i]
+		if key then
+			return key, tbl[key]
+		end
+	end
 end
 
 local function tbl_deep_clone(original)
@@ -234,9 +266,33 @@ local function tbl_is_subset(small, large)
 	return true
 end
 
+local render = ya.sync(function()
+	ya.render()
+end)
+
 local get_cwd = ya.sync(function()
 	return tostring(cx.active.current.cwd)
 end)
+
+local selected_files = ya.sync(function()
+	local tab, raw_urls = cx.active, {}
+	for _, u in pairs(tab.selected) do
+		raw_urls[#raw_urls + 1] = tostring(u)
+	end
+	return raw_urls
+end)
+
+local selected_or_hovered_files = ya.sync(function()
+	local tab, raw_urls = cx.active, selected_files()
+	if #raw_urls == 0 and tab.current.hovered then
+		raw_urls[1] = tostring(tab.current.hovered.url)
+	end
+	return raw_urls
+end)
+
+--          ╭─────────────────────────────────────────────────────────╮
+--          │                    Database section                     │
+--          ╰─────────────────────────────────────────────────────────╯
 
 ---@param tags_tbl string tags database table
 ---@return table<{[string]:string[]}
@@ -291,9 +347,9 @@ local function write_tags_db(tags_db)
 	end
 end
 
-local render = ya.sync(function()
-	ya.render()
-end)
+--          ╭─────────────────────────────────────────────────────────╮
+--          │                      Exposed APIs                       │
+--          ╰─────────────────────────────────────────────────────────╯
 
 function M:fetch(job)
 	local tags_db = get_state(STATE_KEY.tags_database)
@@ -345,8 +401,10 @@ function M:setup(opts)
 		st[STATE_KEY.colors] = opts.colors or st[STATE_KEY.colors]
 		st[STATE_KEY.icons] = ya.dict_merge(st[STATE_KEY.icons], opts.icons or {})
 		st[STATE_KEY.linemode_order] = tonumber(opts.linemode_order) or st[STATE_KEY.linemode_order]
+		st[STATE_KEY.hints_disabled] = opts.hints_disabled or false
 	end
 
+	st[STATE_KEY.hints_table] = ya.dict_merge(tbl_deep_clone(st[STATE_KEY.icons]), tbl_deep_clone(st[STATE_KEY.colors]))
 	-- render tags
 	Linemode:children_add(function(_self)
 		if st[STATE_KEY.ui_mode] == UI_MODE.hidden then
@@ -410,22 +468,6 @@ function M:setup(opts)
 	end)
 end
 
-local selected_files = ya.sync(function()
-	local tab, raw_urls = cx.active, {}
-	for _, u in pairs(tab.selected) do
-		raw_urls[#raw_urls + 1] = tostring(u)
-	end
-	return raw_urls
-end)
-
-local selected_or_hovered_files = ya.sync(function()
-	local tab, raw_urls = cx.active, selected_files()
-	if #raw_urls == 0 and tab.current.hovered then
-		raw_urls[1] = tostring(tab.current.hovered.url)
-	end
-	return raw_urls
-end)
-
 local function toggle_tag(new_tag_key)
 	local tags_db = get_state(STATE_KEY.tags_database)
 	local changed_tags_db = {}
@@ -481,8 +523,97 @@ local function show_cands_ui_modes()
 	end
 end
 
-local function escape_regex(str)
-	return str:gsub("([%^$()%%.%[%]*+%-?{|}])", "\\%1")
+--          ╭─────────────────────────────────────────────────────────╮
+--          │                       UI Section                        │
+--          ╰─────────────────────────────────────────────────────────╯
+
+local toggle_tags_hints = ya.sync(function(self)
+	if self[STATE_KEY.hints_disabled] then
+		return
+	end
+	if self.children then
+		Modal:children_remove(self.children)
+		self.children = nil
+	else
+		self.children = Modal:children_add(self, 20)
+	end
+	ya.render()
+end)
+
+function M:new(area)
+	self:layout(area)
+	return self
+end
+
+local function table_length(tbl)
+	local count = 0
+	for _ in pairs(tbl) do
+		count = count + 1
+	end
+	return count
+end
+
+function M:layout(area)
+	local length = table_length(get_state(STATE_KEY.hints_table) or {})
+	local chunks = ui.Layout()
+		:constraints({
+			ui.Constraint.Fill(1),
+			ui.Constraint.Length(length + 1),
+			ui.Constraint.Percentage(5),
+		})
+		:split(area)
+
+	chunks = ui.Layout()
+		:direction(ui.Layout.HORIZONTAL)
+		:constraints({
+			ui.Constraint.Fill(9),
+			ui.Constraint.Fill(1),
+			ui.Constraint.Percentage(1),
+		})
+		:split(chunks[2])
+
+	self._area = chunks[2]
+end
+
+function M:reflow()
+	return { self }
+end
+
+function M:redraw()
+	local rows = {}
+	local colors = get_state(STATE_KEY.colors) or {}
+	local icons = get_state(STATE_KEY.icons) or {}
+	local rendered_tags = get_state(STATE_KEY.hints_table)
+	for tag, _ in ordered_pairs(rendered_tags) do
+		if tag ~= "default" and tag ~= "reversed" then
+			rows[#rows + 1] = ui.Row({
+				ui.Line(ui.Span(tag):fg(colors[tag] and colors[tag] or "reset")):align(ui.Line.CENTER),
+				ui.Line(ui.Span(icons[tag] or icons.default):fg(colors[tag] and colors[tag] or "reset"))
+					:align(ui.Line.CENTER),
+			})
+		end
+	end
+
+	return {
+		ui.Clear(self._area),
+		ui.Border(ui.Border.ALL)
+			:area(self._area)
+			:type(ui.Border.ROUNDED)
+			:style(ui.Style():fg("blue"))
+			:title(ui.Line("Tags"):align(ui.Line.CENTER)),
+		ui.Table(rows)
+			:area(self._area:pad(ui.Pad(1, 1, 1, 1)))
+			:header(
+				ui.Row({ ui.Line("Key"):align(ui.Line.CENTER), ui.Line("Icon"):align(ui.Line.CENTER) })
+					:style(ui.Style():bold())
+			)
+			:widths({
+				ui.Constraint.Length(20),
+				ui.Constraint.Length(20),
+				ui.Constraint.Percentage(70),
+				ui.Constraint.Length(10),
+			}),
+	}
 end
 
 function M:entry(job)
@@ -495,7 +626,9 @@ function M:entry(job)
 			return
 		end
 		if not selected_tag_key then
+			toggle_tags_hints()
 			local choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
+			toggle_tags_hints()
 			if not choice then
 				return
 			end
@@ -539,7 +672,10 @@ function M:entry(job)
 			set_state(STATE_KEY.preserve_selected_files, preseve_selected_files)
 		else
 			if not selected_tag_key then
+				toggle_tags_hints()
+
 				local choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
+				toggle_tags_hints()
 				if not choice then
 					return
 				end
@@ -593,7 +729,9 @@ function M:entry(job)
 		if not inputted_tags then
 			local choice
 			if not input_mode then
+				toggle_tags_hints()
 				choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
+				toggle_tags_hints()
 				if not choice then
 					return
 				end
