@@ -37,6 +37,11 @@ ya pack -a boydaihungst/simple-tag
 
 ## Prevews
 
+- Tag hints
+
+![image](https://github.com/user-attachments/assets/7aa9f179-a29f-4c80-b50d-51938ded6958)
+
+
 - Toggle tag with custom icons + colors:
 
 ![toggle noraml](https://github.com/user-attachments/assets/ce942a86-f9ea-4639-9543-c00e8b624597)
@@ -85,7 +90,7 @@ require("simple-tag"):setup({
   ui_mode = "icon", -- (Optional)
 
   -- Disable tag keys hints (the pop up window on the bottom right)
-	hints_disabled = false, -- (Optional)
+  hints_disabled = false, -- (Optional)
 
   -- linemode order: icon/text indicator position if linemode
   -- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-plugin/preset/components/linemode.lua#L4-L5
