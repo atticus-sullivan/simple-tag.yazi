@@ -739,11 +739,13 @@ function M:entry(job)
 				end
 				inputted_tags = CAND_TAG_KEYS[choice].on
 			else
+				toggle_tags_hints()
 				local input_value, input_event = ya.input({
 					title = "Filter tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":",
 					position = { "center", w = 50 },
 				})
 
+				toggle_tags_hints()
 				if input_event == 1 and input_value then
 					inputted_tags = input_value
 				else
