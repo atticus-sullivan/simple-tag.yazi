@@ -41,7 +41,6 @@ ya pack -a boydaihungst/simple-tag
 
 ![image](https://github.com/user-attachments/assets/7aa9f179-a29f-4c80-b50d-51938ded6958)
 
-
 - Toggle tag with custom icons + colors:
 
 ![toggle noraml](https://github.com/user-attachments/assets/ce942a86-f9ea-4639-9543-c00e8b624597)
@@ -230,6 +229,18 @@ Or you can use `keymap` to replace all other keys
     # Undo/Redo selection (only works with 5 modes above)
     { on = [ "T", "u" ], run = "plugin simple-tag -- toggle-select --mode=undo", desc = "Undo selection action" },
 ]
+```
+
+### Theme tag hints window
+
+Change border and title of hints window:
+`.../yazi/theme.toml`
+
+```toml
+
+[spot]
+  border = { fg = "#4fa6ed" }
+  title  = { fg = "#4fa6ed" }
 ```
 
 ## For developers

@@ -599,8 +599,10 @@ function M:redraw()
 		ui.Border(ui.Border.ALL)
 			:area(self._area)
 			:type(ui.Border.ROUNDED)
-			:style(ui.Style():fg("blue"))
-			:title(ui.Line("Tags"):align(ui.Line.CENTER)),
+			:style(th and th.spot and th.spot.border or ui.Style():fg("blue"))
+			:title(
+				ui.Line("Tags"):align(ui.Line.CENTER):style(th and th.spot and th.spot.title or ui.Style():fg("blue"))
+			),
 		ui.Table(rows)
 			:area(self._area:pad(ui.Pad(1, 1, 1, 1)))
 			:header(
