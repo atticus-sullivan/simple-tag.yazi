@@ -51,6 +51,7 @@ local STATE_KEY = {
 	hints_table = "hints_table",
 	hints_disabled = "hints_disabled",
 	linemode_order = "linemode_order",
+	feature_flags = "feature_flags",
 }
 
 ---@enum UI_MODE
@@ -270,8 +271,12 @@ local render = ya.sync(function()
 	ya.render()
 end)
 
+-- local get_cwd = ya.sync(function()
+-- 	return tostring(cx.active.current.cwd)
+-- end)
+
 local get_cwd = ya.sync(function()
-	return tostring(cx.active.current.cwd)
+	return cx.active.current.cwd
 end)
 
 local selected_files = ya.sync(function()
@@ -403,6 +408,11 @@ function M:setup(opts)
 		st[STATE_KEY.linemode_order] = tonumber(opts.linemode_order) or st[STATE_KEY.linemode_order]
 		st[STATE_KEY.hints_disabled] = opts.hints_disabled or false
 	end
+	-- TODO: Remove after v25.3.7
+	-- features flags
+	st[STATE_KEY.feature_flags] = {
+		is_support_new_filter_method = type(fs.op) == "function",
+	}
 
 	st[STATE_KEY.hints_table] = ya.dict_merge(tbl_deep_clone(st[STATE_KEY.icons]), tbl_deep_clone(st[STATE_KEY.colors]))
 	-- render tags
@@ -689,7 +699,7 @@ function M:entry(job)
 					return
 				end
 			end
-			local tags_tbl = get_cwd()
+			local tags_tbl = tostring(get_cwd())
 			local tags_db = get_state(STATE_KEY.tags_database)
 			local tagged_filenames = tags_db[tags_tbl] or {}
 			for fname, tags in pairs(tagged_filenames) do
@@ -741,7 +751,7 @@ function M:entry(job)
 			else
 				toggle_tags_hints()
 				local input_value, input_event = ya.input({
-					title = "Filter tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":",
+					title = "Search tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":",
 					position = { "center", w = 50 },
 				})
 
@@ -763,28 +773,59 @@ function M:entry(job)
 			end
 		end
 
-		local tags_tbl = get_cwd()
+		local feature_flags = get_state(STATE_KEY.feature_flags)
+		local tags_tbl = tostring(get_cwd())
 		local tags_db = get_state(STATE_KEY.tags_database)
 		local tagged_filenames = tags_db[tags_tbl] or {}
-		local query = ""
-		if filter_mode == FILTER_MODE["and"] then
-			for fname, tags in pairs(tagged_filenames) do
-				if tbl_is_subset(filter_tags, tags) then
-					query = query .. escape_regex(fname) .. "|"
-				end
-			end
-		else
-			for fname, tags in pairs(tagged_filenames) do
-				for _, tag in ipairs(tags) do
-					if filter_tags[tag] then
+		if not feature_flags or not feature_flags.is_support_new_filter_method then
+			-- TODO: Remove this after v25.3.7
+			local query = ""
+			if filter_mode == FILTER_MODE["and"] then
+				for fname, tags in pairs(tagged_filenames) do
+					if tbl_is_subset(filter_tags, tags) then
 						query = query .. escape_regex(fname) .. "|"
-						break
+					end
+				end
+			else
+				for fname, tags in pairs(tagged_filenames) do
+					for _, tag in ipairs(tags) do
+						if filter_tags[tag] then
+							query = query .. escape_regex(fname) .. "|"
+							break
+						end
 					end
 				end
 			end
+			query = "^(" .. query:sub(1, -2) .. ")$"
+			ya.manager_emit("filter_do", { query, smart = false, insensitive = false })
+		else
+			-- TODO: Don't remove this after v25.3.7
+			local cwd = get_cwd()
+
+			local id = ya.id("ft")
+			local _cwd = cwd:into_search(
+				"Tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ": " .. table.concat(filter_tags, " ")
+			)
+			ya.mgr_emit("cd", { Url(_cwd) })
+			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
+
+			local files = {}
+			for fname, tags in pairs(tagged_filenames) do
+				if
+					(filter_mode == FILTER_MODE["and"] and tbl_is_subset(filter_tags, tags))
+					or (filter_mode == FILTER_MODE["or"] and filter_tags[tag])
+				then
+					local url = _cwd:join(fname)
+					local cha = fs.cha(url, true)
+					if cha then
+						files[#files + 1] = File({ url = url, cha = cha })
+					end
+				end
+			end
+
+			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
+			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
-		query = "^(" .. query:sub(1, -2) .. ")$"
-		ya.manager_emit("filter_do", { query, smart = false, insensitive = false })
 	elseif action == "files-deleted" then
 		-- get changes tags
 		local changed_tags_db = {}

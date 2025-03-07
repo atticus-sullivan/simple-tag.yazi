@@ -186,10 +186,12 @@ Or you can use `keymap` to replace all other keys
     { on = [ "t", "t" ], run = "plugin simple-tag -- toggle-ui", desc = "Toggle tag indicator (icon > tag key > hidden)" },
 
     # Filter files by tags
-    # NOTE: This use a hacky way to filter files, so it may not work if
+    # NOTE: For yazi < v25.3.7
+    #       This use a hacky way to filter files, so it may not work if
     #       there are too many files matched the selected  tags.
     #       Work just file if there are less than 5000 files.
     #       Well,  it depends on your system and the length of file's name.
+    # NOTE: For yazi version >= v25.3.7, then this limitation is gone, you can search as many files as you want.
     { on = [ "t", "f" ], run = "plugin simple-tag -- filter", desc = "Filter files by a tag (press any key)" },
     # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!", desc = "Filter files by tag = !" },
     # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!1q", desc = "Filter files by multiple tags (! and 1 and q)" },
