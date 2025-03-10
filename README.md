@@ -265,7 +265,7 @@ Trigger this plugin programmatically:
 
 
 -- Special action: "files-deleted" -> clear all tags from these files/folders
-  local args = ya.quote("files-deleted")
+  local args = ya.quote("internal-clear-tag")
 -- A array of string url
   local files_to_clear_tags = selected_or_hovered_files()
   for _, url in ipairs(files_to_clear_tags) do
