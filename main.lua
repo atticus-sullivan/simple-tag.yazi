@@ -321,7 +321,7 @@ local function write_tags_db(tags_db)
 	local save_path = get_state(STATE_KEY.save_path)
 	for tags_tbl, tags_tbl_records in pairs(tags_db) do
 		local tags_tbl_save_dir = pathJoin(save_path, tags_tbl)
-		for fname, tags in pairs(tags_tbl_records or {}) do
+		for fname, tags in pairs(tags_tbl_records) do
 			if #tags == 0 then
 				tags_db[tags_tbl][fname] = nil
 			end
@@ -358,34 +358,14 @@ end
 
 function M:fetch(job)
 	local tags_db = get_state(STATE_KEY.tags_database)
-	local args = ""
-
 	for _, file in ipairs(job.files) do
 		local tags_tbl = tostring(file.url:parent())
 		if tags_db[tags_tbl] == nil then
 			tags_db[tags_tbl] = read_tags_tbl(tags_tbl)
-			if tags_db[tags_tbl] ~= nil then
-				-- remove none existent tagged file when visit parent folder
-				for fname, _ in pairs(tags_db[tags_tbl]) do
-					local fpath_origin = pathJoin(tags_tbl, fname)
-
-					local cha = fs.cha(Url(fpath_origin), true)
-					if not cha then
-						args = args .. " " .. ya.quote(tostring(fpath_origin))
-					end
-				end
-			end
 		end
 	end
 	set_state(STATE_KEY.tags_database, tags_db)
 	render()
-	if args ~= "" then
-		ya.manager_emit("plugin", {
-			get_state("_id"),
-			ya.quote("internal-clear-tag") .. args,
-		})
-	end
-
 	return true
 end
 
@@ -473,7 +453,7 @@ function M:setup(opts)
 	end, st[STATE_KEY.linemode_order])
 
 	ps.sub(PUBSUB_KIND.files_deleted, function(payload)
-		local args = ya.quote("internal-clear-tag")
+		local args = ya.quote("files-deleted")
 		for _, url in ipairs(payload.urls) do
 			args = args .. " " .. ya.quote(tostring(url))
 		end
@@ -481,15 +461,6 @@ function M:setup(opts)
 			self._id,
 			args,
 		})
-	end)
-
-	ps.sub("load", function(body)
-		if not body.stage.is_loading then
-			ya.manager_emit("plugin", {
-				get_state("_id"),
-				ya.quote("internal-clear-missing-file") .. " " .. ya.quote(tostring(body.url)),
-			})
-		end
 	end)
 
 	ps.sub_remote(PUBSUB_KIND.ui_mode_changed, function(mode)
@@ -677,7 +648,7 @@ function M:entry(job)
 		end
 		toggle_tag(selected_tag_key)
 	elseif action == "clear" then
-		local args = ya.quote("internal-clear-tag")
+		local args = ya.quote("files-deleted")
 		local files_to_clear = selected_or_hovered_files()
 		for _, url in ipairs(files_to_clear) do
 			args = args .. " " .. ya.quote(url)
@@ -855,7 +826,7 @@ function M:entry(job)
 			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
 			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
-	elseif action == "internal-clear-tag" then
+	elseif action == "files-deleted" then
 		-- get changes tags
 		local changed_tags_db = {}
 		local tags_db = get_state(STATE_KEY.tags_database)
@@ -873,16 +844,6 @@ function M:entry(job)
 			::continue::
 		end
 		write_tags_db(changed_tags_db)
-	elseif action == "internal-clear-missing-file" then
-		local url_raw = tostring(job.args[2])
-		local url = Url(url_raw)
-		local files, _ = fs.read_dir(url, { limit = 1 })
-
-		if files and #files == 0 then
-			local changed_tags_db = {}
-			changed_tags_db[url_raw] = {}
-			write_tags_db(changed_tags_db)
-		end
 	end
 end
 
