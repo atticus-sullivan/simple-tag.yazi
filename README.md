@@ -31,9 +31,9 @@ ya pack -a boydaihungst/simple-tag
 ```
 
 > [!IMPORTANT]
-> Deleted files/folders in Yazi will also have their tags cleared.
+> Deleted/trashed files/folders in Yazi will also have their tags cleared.
 > However, if you delete them using a different file manager or through the command line, then re-create them,
-> all tags will be restored. Using trash also retains tags, and only permanently deleting files/folders will clear the tags.
+> all tags will be restored.
 
 ## Prevews
 

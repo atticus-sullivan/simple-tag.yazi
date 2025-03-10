@@ -93,6 +93,7 @@ local PUBSUB_KIND = {
 	-- "@" persist state
 	ui_mode_changed = "@" .. PackageName .. "-ui-mode-changed",
 	files_deleted = "delete",
+	files_trash = "trash",
 }
 
 --          ╭─────────────────────────────────────────────────────────╮
@@ -463,6 +464,17 @@ function M:setup(opts)
 		})
 	end)
 
+	ps.sub(PUBSUB_KIND.files_trash, function(payload)
+		local args = ya.quote("files-deleted")
+		for _, url in ipairs(payload.urls) do
+			args = args .. " " .. ya.quote(tostring(url))
+		end
+		ya.manager_emit("plugin", {
+			self._id,
+			args,
+		})
+	end)
+
 	ps.sub_remote(PUBSUB_KIND.ui_mode_changed, function(mode)
 		set_state(STATE_KEY.ui_mode, mode)
 		render()
@@ -731,7 +743,10 @@ function M:entry(job)
 		-- clear selection
 		ya.manager_emit("escape", { select = true })
 		for _, url in ipairs(new_selected_files) do
-			ya.manager_emit("toggle", { Url(url), state = "on" })
+			local cha = fs.cha(Url(url), {})
+			if cha then
+				ya.manager_emit("toggle", { Url(url), state = "on" })
+			end
 		end
 	elseif action == "filter" then
 		local filter_tags = {}
