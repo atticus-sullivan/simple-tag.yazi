@@ -1,15 +1,18 @@
 # simple-tag
 
 <!--toc:start-->
-
 - [simple-tag](#simple-tag)
+  - [Overview](#overview)
   - [Requirements](#requirements)
   - [Installation](#installation)
+  - [Previews](#previews)
+  - [Configuration](#configuration)
     - [Add setup function in `yazi/init.lua`.](#add-setup-function-in-yaziinitlua)
-    - [Add fetcher `yazi.toml`](#add-fetcher-yazitoml)
-    - [Add `keymap.toml`](#add-keymaptoml)
-  - [For developers](#for-developers)
-  <!--toc:end-->
+    - [Fetcher Configuration in `yazi.toml`](#fetcher-configuration-in-yazitoml)
+    - [Keybindings in `keymap.toml`](#keybindings-in-keymaptoml)
+    - [Customizing the Theme for tag hints window](#customizing-the-theme-for-tag-hints-window)
+  - [For Developers](#for-developers)
+<!--toc:end-->
 
 ## Overview
 
@@ -38,7 +41,7 @@ ya pack -a boydaihungst/simple-tag
 > However, if deleted outside Yazi and then recreated, their tags will be restored.
 > It also apply with renaming files/folders.
 
-## Prevews
+## Previews
 
 - Tag Hints, will show up whenever you need to input or select tag(s).
   Only custom Icons or colors are shown.
@@ -67,17 +70,34 @@ ya pack -a boydaihungst/simple-tag
 
     ![Recording 2025-03-29 at 21 01 39](https://github.com/user-attachments/assets/cf9e757f-d910-4dca-aec5-cf9c36e54f34)
 
-- Visual Selection Modes (updating):
+- Visual Selection Modes:
+  Those examples below, I didn't use fixed `--keys`/`--key`/`--tag`/`--tags`
+
+  ![image](https://github.com/user-attachments/assets/6efabb8a-0022-4aa3-ba20-04127e3c58c1)
 
   - Replace selection:
 
+    ![Recording 2025-03-29 at 23 30 56](https://github.com/user-attachments/assets/364c07a7-c1ef-4323-8e92-ccb795233fd7)
+
   - Unite selection:
+
+    ![Recording 2025-03-29 at 23 36 59](https://github.com/user-attachments/assets/915ed231-f553-4eec-aaf0-5c0f0f56b729)
 
   - Subtract selection:
 
+    ![Recording 2025-03-29 at 23 45 42](https://github.com/user-attachments/assets/fac67ebb-2a77-49a6-955b-ab4e08ee4066)
+
   - Intersect selection:
 
+    ![Recording 2025-03-29 at 23 51 17](https://github.com/user-attachments/assets/6f46e221-d43e-49b7-8e9c-6f4aa1317e3b)
+
   - Exclude selection:
+
+    ![Recording 2025-03-29 at 23 27 41](https://github.com/user-attachments/assets/7fa93311-1cdb-4346-bae1-a3f97bf74043)
+
+  - Undo selection:
+
+    ![Recording 2025-03-29 at 23 54 55](https://github.com/user-attachments/assets/abf7ccc7-7591-4683-84f9-53e8cb9a280e)
 
 ## Configuration
 
