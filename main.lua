@@ -61,10 +61,25 @@ local UI_MODE = {
 	text = "text",
 }
 
---@enum FILTER_MODE
+---@enum FILTER_MODE
 local FILTER_MODE = {
 	["or"] = "or",
 	["and"] = "and",
+}
+
+---@enum ACTION_TAG_MODE
+local TAG_ACTION = {
+	remove = "remove-tag",
+	add = "add-tag",
+	replace = "replace-tag",
+	toggle = "toggle-tag",
+	edit = "edit-tag",
+	clear = "clear",
+	toggle_ui = "toggle-ui",
+	toggle_select = "toggle-select",
+	filter = "filter",
+	files_deleted = "files-deleted",
+	files_renamed = "files-renamed",
 }
 
 local UI_MODE_ORDERED = {
@@ -94,6 +109,8 @@ local PUBSUB_KIND = {
 	ui_mode_changed = "@" .. PackageName .. "-ui-mode-changed",
 	files_deleted = "delete",
 	files_trash = "trash",
+	file_renamed = "rename",
+	files_bulk_renamed = "bulk",
 }
 
 --          ╭─────────────────────────────────────────────────────────╮
@@ -268,6 +285,18 @@ local function tbl_is_subset(small, large)
 	return true
 end
 
+local function tbl_contains_any(large, small)
+	local set1 = tbl_to_set(large)
+
+	for _, v in ipairs(small) do
+		if set1[tostring(v)] then
+			return true
+		end
+	end
+
+	return false
+end
+
 local render = ya.sync(function()
 	ya.render()
 end)
@@ -370,7 +399,7 @@ function M:fetch(job)
 	return true
 end
 
-function M:has_tags(file, tags_filter)
+function M:has_tags(file, filter_tags)
 	local url
 	if type(file) == "string" then
 		url = Url(file)
@@ -383,7 +412,7 @@ function M:has_tags(file, tags_filter)
 	local tags_database = get_state(STATE_KEY.tags_database)
 	if tags_database[tags_tbl] and tags_database[tags_tbl][fname] then
 		local tags = tags_database[tags_tbl][fname] or {}
-		return tbl_is_subset(tags_filter, tags)
+		return tbl_is_subset(filter_tags, tags)
 	end
 	return false
 end
@@ -453,8 +482,32 @@ function M:setup(opts)
 		return ui.Line(spans)
 	end, st[STATE_KEY.linemode_order])
 
+	ps.sub(PUBSUB_KIND.file_renamed, function(payload)
+		local changed_files = {}
+		changed_files[tostring(payload.from)] = tostring(payload.to)
+		local args = ya.quote(TAG_ACTION.files_renamed)
+		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
+		ya.manager_emit("plugin", {
+			self._id,
+			args,
+		})
+	end)
+
+	ps.sub(PUBSUB_KIND.files_bulk_renamed, function(payload)
+		local args = ya.quote(TAG_ACTION.files_renamed)
+		local changed_files = {}
+		for from, to in pairs(payload) do
+			changed_files[tostring(from)] = tostring(to)
+		end
+		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
+		ya.manager_emit("plugin", {
+			self._id,
+			args,
+		})
+	end)
+
 	ps.sub(PUBSUB_KIND.files_deleted, function(payload)
-		local args = ya.quote("files-deleted")
+		local args = ya.quote(TAG_ACTION.files_deleted)
 		for _, url in ipairs(payload.urls) do
 			args = args .. " " .. ya.quote(tostring(url))
 		end
@@ -465,7 +518,7 @@ function M:setup(opts)
 	end)
 
 	ps.sub(PUBSUB_KIND.files_trash, function(payload)
-		local args = ya.quote("files-deleted")
+		local args = ya.quote(TAG_ACTION.files_deleted)
 		for _, url in ipairs(payload.urls) do
 			args = args .. " " .. ya.quote(tostring(url))
 		end
@@ -490,7 +543,7 @@ function M:setup(opts)
 	end)
 end
 
-local function toggle_tag(new_tag_key)
+local function toggle_tag(new_tag_keys, mode)
 	local tags_db = get_state(STATE_KEY.tags_database)
 	local changed_tags_db = {}
 	for _, raw_url in ipairs(selected_or_hovered_files()) do
@@ -503,20 +556,39 @@ local function toggle_tag(new_tag_key)
 		if not tags_db[tags_tbl][fname] then
 			tags_db[tags_tbl][fname] = {}
 		end
-		local tags = tags_db[tags_tbl][fname]
-		local is_removed = false
+		local tags = tags_db[tags_tbl][fname] or {}
 
-		-- remove if exist
-		for idx = #tags, 1, -1 do
-			if tags[idx] == new_tag_key then
-				table.remove(tags, idx)
-				is_removed = true
+		if mode == TAG_ACTION.toggle then
+			local lookup = {}
+
+			-- Convert array into a lookup table for fast searching
+			for i, v in ipairs(tags) do
+				lookup[v] = i -- Store the index of each element
 			end
-		end
-
-		-- add if not exist
-		if not is_removed then
-			table.insert(tags, new_tag_key)
+			-- Toggle each value in the values array
+			for _, v in ipairs(new_tag_keys) do
+				if lookup[v] then
+					-- If found, remove it
+					table.remove(tags, lookup[v])
+					lookup = {} -- Reset lookup (indexes shift after removal)
+					for i, item in ipairs(tags) do
+						lookup[item] = i
+					end
+				else
+					-- If not found, add it
+					table.insert(tags, v)
+					lookup[v] = #tags -- Update lookup with new index
+				end
+			end
+		elseif mode == TAG_ACTION.remove then
+			-- remove if exist
+			tags = tbl_subtract(tags, new_tag_keys)
+		elseif mode == TAG_ACTION.add then
+			-- add if not exist
+			tags = tbl_unite(tags, new_tag_keys)
+		elseif mode == TAG_ACTION.replace then
+			-- replace if exist
+			tags = #new_tag_keys == 0 and nil or new_tag_keys
 		end
 		tags_db[tags_tbl][fname] = tags
 		changed_tags_db[tags_tbl] = tags_db[tags_tbl]
@@ -640,27 +712,102 @@ function M:redraw()
 	}
 end
 
+local function show_cands_input_tags(title, input_mode, default_input_value)
+	local choice
+	if not input_mode then
+		toggle_tags_hints()
+		choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
+		toggle_tags_hints()
+		if not choice then
+			return
+		end
+		return CAND_TAG_KEYS[choice].on
+	else
+		toggle_tags_hints()
+		local title_len = utf8.len(title) or 0
+		local input_width = 50
+		local max_width = 200
+		if title_len > input_width then
+			input_width = title_len > max_width and max_width or title_len
+			title = title_len > input_width and (string.sub(title, 1, input_width) .. "...") or title
+		end
+		local input_value, input_event = ya.input({
+			title = title,
+			value = default_input_value or "",
+			position = { "center", w = input_width },
+		})
+		toggle_tags_hints()
+		if input_event == 1 and input_value then
+			return input_value or ""
+		else
+			return
+		end
+	end
+end
+
 function M:entry(job)
 	local action = job.args[1]
 	ya.manager_emit("escape", { visual = true })
-	if action == "toggle-tag" then
-		local selected_tag_key = job.args.key
-		if selected_tag_key ~= nil and #tostring(selected_tag_key) ~= 1 then
-			fail(NOTIFY_MSG.TAG_KEY_INVALID)
+	if
+		action == TAG_ACTION.toggle
+		or action == TAG_ACTION.add
+		or action == TAG_ACTION.remove
+		or action == TAG_ACTION.replace
+	then
+		local selected_tag_keys = {}
+		local inputted_tags = job.args.key or job.args.keys
+		local input_mode = job.args.input
+		-- Mode: remove, add, toggle
+		local toggle_mode = action
+		local title = (
+			toggle_mode == TAG_ACTION.add and "Add"
+			or toggle_mode == TAG_ACTION.remove and "Remove"
+			or toggle_mode == TAG_ACTION.replace and "Replace"
+			or "Toggle"
+		) .. " tags:"
+
+		if not inputted_tags then
+			inputted_tags = show_cands_input_tags(title, input_mode)
+		end
+
+		if not inputted_tags then
 			return
 		end
-		if not selected_tag_key then
-			toggle_tags_hints()
-			local choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
-			toggle_tags_hints()
-			if not choice then
+		for _, code in utf8.codes(inputted_tags) do
+			table.insert(selected_tag_keys, utf8.char(code))
+		end
+		toggle_tag(selected_tag_keys, toggle_mode)
+	elseif action == TAG_ACTION.edit then
+		local files_to_update = selected_or_hovered_files()
+		if #files_to_update == 0 then
+			return
+		end
+
+		local tags_db = get_state(STATE_KEY.tags_database)
+		local changed_tags_db = {}
+		for _, url_raw in ipairs(files_to_update) do
+			local updated_tags = {}
+			local url = Url(url_raw)
+			local tags_tbl = tostring(url:parent())
+			if not tags_db[tags_tbl] then
+				tags_db[tags_tbl] = {}
+			end
+			local fname = url:name()
+			local title = "Edit tags (" .. fname .. "):"
+			local inputted_tags = show_cands_input_tags(title, true, table.concat(tags_db[tags_tbl][fname] or {}))
+			if inputted_tags == nil then
 				return
 			end
-			selected_tag_key = CAND_TAG_KEYS[choice].on
+
+			for _, code in utf8.codes(inputted_tags) do
+				table.insert(updated_tags, utf8.char(code))
+			end
+			tags_db[tags_tbl][fname] = #updated_tags == 0 and nil or updated_tags
+			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
 		end
-		toggle_tag(selected_tag_key)
-	elseif action == "clear" then
-		local args = ya.quote("files-deleted")
+		write_tags_db(changed_tags_db)
+	elseif action == TAG_ACTION.clear then
+		local args = ya.quote(TAG_ACTION.files_deleted)
 		local files_to_clear = selected_or_hovered_files()
 		for _, url in ipairs(files_to_clear) do
 			args = args .. " " .. ya.quote(url)
@@ -669,7 +816,7 @@ function M:entry(job)
 			get_state("_id"),
 			args,
 		})
-	elseif action == "toggle-ui" then
+	elseif action == TAG_ACTION.toggle_ui then
 		local ui_mode = job.args.mode
 		-- toggle between show icons/text keys/hidden
 		if not ui_mode then
@@ -682,7 +829,7 @@ function M:entry(job)
 			end
 		end
 		broadcast(PUBSUB_KIND.ui_mode_changed, ui_mode)
-	elseif action == "toggle-select" then
+	elseif action == TAG_ACTION.toggle_select then
 		local select_mode = job.args.mode or SELECTION_MODE.REPLACE
 		local selected_tag_key = job.args.tag
 		local new_selected_files = {}
@@ -748,44 +895,23 @@ function M:entry(job)
 				ya.manager_emit("toggle", { Url(url), state = "on" })
 			end
 		end
-	elseif action == "filter" then
+	elseif action == TAG_ACTION.filter then
 		local filter_tags = {}
 		local inputted_tags = job.args.keys
 		local filter_mode = job.args.mode or FILTER_MODE["and"]
 		local input_mode = job.args.input
+		local title = "Search tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":"
 		if not inputted_tags then
-			local choice
-			if not input_mode then
-				toggle_tags_hints()
-				choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
-				toggle_tags_hints()
-				if not choice then
-					return
-				end
-				inputted_tags = CAND_TAG_KEYS[choice].on
-			else
-				toggle_tags_hints()
-				local input_value, input_event = ya.input({
-					title = "Search tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":",
-					position = { "center", w = 50 },
-				})
+			inputted_tags = show_cands_input_tags(title, input_mode)
+		end
 
-				toggle_tags_hints()
-				if input_event == 1 and input_value then
-					inputted_tags = input_value
-				else
-					return
-				end
-			end
+		if not inputted_tags then
+			return
 		end
 
 		for _, code in utf8.codes(inputted_tags) do
 			local key = utf8.char(code)
-			if filter_mode == FILTER_MODE["and"] then
-				table.insert(filter_tags, key)
-			else
-				filter_tags[key] = true
-			end
+			table.insert(filter_tags, key)
 		end
 
 		local feature_flags = get_state(STATE_KEY.feature_flags)
@@ -803,11 +929,9 @@ function M:entry(job)
 				end
 			else
 				for fname, tags in pairs(tagged_filenames) do
-					for _, tag in ipairs(tags) do
-						if filter_tags[tag] then
-							query = query .. escape_regex(fname) .. "|"
-							break
-						end
+					if tbl_contains_any(tags, filter_tags) then
+						query = query .. escape_regex(fname) .. "|"
+						break
 					end
 				end
 			end
@@ -828,7 +952,7 @@ function M:entry(job)
 			for fname, tags in pairs(tagged_filenames) do
 				if
 					(filter_mode == FILTER_MODE["and"] and tbl_is_subset(filter_tags, tags))
-					or (filter_mode == FILTER_MODE["or"] and filter_tags[tag])
+					or (filter_mode == FILTER_MODE["or"] and tbl_contains_any(tags, filter_tags))
 				then
 					local url = _cwd:join(fname)
 					local cha = fs.cha(url, true)
@@ -841,7 +965,7 @@ function M:entry(job)
 			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
 			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
-	elseif action == "files-deleted" then
+	elseif action == TAG_ACTION.files_deleted then
 		-- get changes tags
 		local changed_tags_db = {}
 		local tags_db = get_state(STATE_KEY.tags_database)
@@ -859,6 +983,28 @@ function M:entry(job)
 			::continue::
 		end
 		write_tags_db(changed_tags_db)
+	elseif action == TAG_ACTION.files_renamed then
+		if job.args.changes then
+			local changed_tags_db = {}
+			local tags_db = get_state(STATE_KEY.tags_database)
+			local changes = ya.json_decode(job.args.changes)
+			for from, to in pairs(changes) do
+				local from_url = Url(from)
+				local to_url = Url(to)
+				local tags_tbl = tostring(from_url:parent())
+				local old_fname = tostring(from_url:name())
+				local new_fname = tostring(to_url:name())
+
+				if tags_tbl and old_fname and new_fname then
+					if tags_db and tags_tbl and tags_db[tags_tbl] then
+						tags_db[tags_tbl][new_fname] = tags_db[tags_tbl][old_fname]
+						tags_db[tags_tbl][old_fname] = nil
+						changed_tags_db[tags_tbl] = tags_db[tags_tbl]
+					end
+				end
+			end
+			write_tags_db(changed_tags_db)
+		end
 	end
 end
 
