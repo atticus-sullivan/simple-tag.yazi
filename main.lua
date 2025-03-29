@@ -751,6 +751,26 @@ local function show_cands_input_tags(title, input_mode, default_input_value)
 	end
 end
 
+local function delete_tags(files_to_clear)
+	-- get changes tags
+	local changed_tags_db = {}
+	local tags_db = get_state(STATE_KEY.tags_database)
+	for _, raw_url in ipairs(files_to_clear) do
+		local url = Url(raw_url)
+		if url == nil then
+			goto continue
+		end
+		local tags_tbl = tostring(url:parent())
+		local fname = tostring(url:name())
+		if tags_db and tags_tbl and tags_db[tags_tbl] then
+			tags_db[tags_tbl][fname] = nil
+			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
+		end
+		::continue::
+	end
+	write_tags_db(changed_tags_db)
+end
+
 function M:entry(job)
 	local action = job.args[1]
 	ya.manager_emit("escape", { visual = true })
@@ -813,15 +833,8 @@ function M:entry(job)
 		end
 		write_tags_db(changed_tags_db)
 	elseif action == TAG_ACTION.clear then
-		local args = ya.quote(TAG_ACTION.files_deleted)
 		local files_to_clear = selected_or_hovered_files()
-		for _, url in ipairs(files_to_clear) do
-			args = args .. " " .. ya.quote(url)
-		end
-		ya.manager_emit("plugin", {
-			get_state("_id"),
-			args,
-		})
+		delete_tags(files_to_clear)
 	elseif action == TAG_ACTION.toggle_ui then
 		local ui_mode = job.args.mode
 		-- toggle between show icons/text keys/hidden
@@ -877,6 +890,9 @@ function M:entry(job)
 			if not inputted_tags then
 				local title = "Select tags"
 					.. (select_mode == SELECTION_MODE["and"] and "" or ", MODE=(" .. select_mode .. ")")
+					.. ", ACTION=("
+					.. action:gsub("%-select", "")
+					.. ")"
 					.. ":"
 
 				if not inputted_tags then
@@ -999,23 +1015,7 @@ function M:entry(job)
 			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
 	elseif action == TAG_ACTION.files_deleted then
-		-- get changes tags
-		local changed_tags_db = {}
-		local tags_db = get_state(STATE_KEY.tags_database)
-		for idx, raw_url in ipairs(job.args) do
-			local url = Url(raw_url)
-			if idx == 1 or url == nil then
-				goto continue
-			end
-			local tags_tbl = tostring(url:parent())
-			local fname = tostring(url:name())
-			if tags_db and tags_tbl and tags_db[tags_tbl] then
-				tags_db[tags_tbl][fname] = nil
-				changed_tags_db[tags_tbl] = tags_db[tags_tbl]
-			end
-			::continue::
-		end
-		write_tags_db(changed_tags_db)
+		delete_tags(table.remove(job.args, 1))
 	elseif action == TAG_ACTION.files_renamed then
 		if job.args.changes then
 			local changed_tags_db = {}
