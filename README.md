@@ -40,36 +40,56 @@ ya pack -a boydaihungst/simple-tag
 
 ## Prevews
 
-- Tag Hints, will show up when ever you need to input and select tags.
+- Tag Hints, will show up whenever you need to input or select tag(s).
   Only custom Icons or colors are shown.
-
-![image](https://github.com/user-attachments/assets/7aa9f179-a29f-4c80-b50d-51938ded6958)
-
-- Toggle Tags (Custom Icons & Colors):
-
-![toggle normal](https://github.com/user-attachments/assets/ce942a86-f9ea-4639-9543-c00e8b624597)
+  
+  ![image](https://github.com/user-attachments/assets/5b5b9baa-044d-4fe8-a09a-46ec915b94c3)
 
 - Tag Icon/Text/Hidden Indicator:
+  
+  ![Recording 2025-03-29 at 20 49 49](https://github.com/user-attachments/assets/261bfd3f-3249-45b0-a59a-10e2f44a70eb)
 
-![toggle ui](https://github.com/user-attachments/assets/4208d1ef-31ce-40ef-92bc-2952a8319ee1)
+- Toggle Tag(s):
 
-- Filter Files by Tags Modes:
+  ![Recording 2025-03-29 at 21 10 38](https://github.com/user-attachments/assets/8cdf108c-8951-4da6-a9f4-b542ab0ce8d4)
+
+- Add, Remove, Replace, Edit Tag(s):
+
+  ![Recording 2025-03-29 at 21 30 13](https://github.com/user-attachments/assets/2c5bef3b-cb9f-49ca-976f-fb5bad5bc323)
+
+- Filter Files by Tag(s) and Modes:
 
   - Mode = and (Default), match all of the selected tags:
 
+    ![Recording 2025-03-29 at 20 56 47](https://github.com/user-attachments/assets/e7619681-7ab8-4e2c-b8ea-ea4aeb8c22db)
+
+
   - Mode = or, match at least one of the selected tags:
 
-- Visual Selection Modes:
+    ![Recording 2025-03-29 at 21 01 39](https://github.com/user-attachments/assets/cf9e757f-d910-4dca-aec5-cf9c36e54f34)
+
+
+- Visual Selection Modes (updating):
 
   - Replace selection:
 
+
+
   - Unite selection:
+
+
 
   - Subtract selection:
 
+
+
   - Intersect selection:
 
+
+
   - Exclude selection:
+
+
 
 ## Configuration
 
