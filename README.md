@@ -42,11 +42,11 @@ ya pack -a boydaihungst/simple-tag
 
 - Tag Hints, will show up whenever you need to input or select tag(s).
   Only custom Icons or colors are shown.
-  
+
   ![image](https://github.com/user-attachments/assets/5b5b9baa-044d-4fe8-a09a-46ec915b94c3)
 
 - Tag Icon/Text/Hidden Indicator:
-  
+
   ![Recording 2025-03-29 at 20 49 49](https://github.com/user-attachments/assets/261bfd3f-3249-45b0-a59a-10e2f44a70eb)
 
 - Toggle Tag(s):
@@ -63,33 +63,21 @@ ya pack -a boydaihungst/simple-tag
 
     ![Recording 2025-03-29 at 20 56 47](https://github.com/user-attachments/assets/e7619681-7ab8-4e2c-b8ea-ea4aeb8c22db)
 
-
   - Mode = or, match at least one of the selected tags:
 
     ![Recording 2025-03-29 at 21 01 39](https://github.com/user-attachments/assets/cf9e757f-d910-4dca-aec5-cf9c36e54f34)
-
 
 - Visual Selection Modes (updating):
 
   - Replace selection:
 
-
-
   - Unite selection:
-
-
 
   - Subtract selection:
 
-
-
   - Intersect selection:
 
-
-
   - Exclude selection:
-
-
 
 ## Configuration
 
@@ -191,7 +179,7 @@ Or you can use `keymap` to replace all other keys
     # Simply press any tag key to toggle that tag for selected or hovered files/folders.
     { on = [ "t", "t", "k" ], run = "plugin simple-tag -- toggle-tag", desc = "Toggle a tag (press any key)" },
 
-    # Fast Toggle tag(s) with fixed keys=!1q. key=!1q also work
+    # Fast Toggle tag(s) with fixed keys=!1q. key=!1q tag=!1q or tags=!1q also work
     # NOTE: For key=" (Quotation mark), then use key=\" (Backslash + Quotation mark) instead.
     { on = [ "`" ], run = "plugin simple-tag -- toggle-tag --keys=!1q", desc = "Toggle tag(s) with fixed tag key(s) = (! and 1 and q)" },
     { on = [ "`" ], run = "plugin simple-tag -- toggle-tag --keys=*", desc = "Toggle tag with fixed tag key = *" },
@@ -210,7 +198,7 @@ Or you can use `keymap` to replace all other keys
     # Simply press any new tag key to add to selected or hovered files/folders.
     { on = [ "t", "a", "k" ], run = "plugin simple-tag -- add-tag", desc = "Add a tag (press any key)" },
 
-    # Fast Add tag(s) with fixed keys=!1q. key=!1q also work
+    # Fast Add tag(s) with fixed keys=!1q. key=!1q tag=!1q or tags=!1q also work
     { on = [ "t", "a", "f" ], run = "plugin simple-tag -- add-tag --keys=!1q", desc = "Add tag(s) with fixed tag keys = (! and 1 and q)" },
     { on = [ "t", "a", "f" ], run = "plugin simple-tag -- add-tag --keys=*", desc = "Add tag with fixed tag key = *" },
     { on = [ "t", "a", "f" ], run = "plugin simple-tag -- add-tag --key=*", desc = "Add tag with fixed tag key = *" },
@@ -228,7 +216,7 @@ Or you can use `keymap` to replace all other keys
     # Simply press any tag key to be removed from selected or hovered files/folders.
     { on = [ "t", "d", "k" ], run = "plugin simple-tag -- remove-tag", desc = "Remove a tag (press any key)" },
 
-    # Fast Remove tag(s) with fixed keys=!1q. key=!1q also work
+    # Fast Remove tag(s) with fixed keys=!1q. key=!1q tag=!1q or tags=!1q also work
     { on = [ "t", "d", "f" ], run = "plugin simple-tag -- remove-tag --keys=!1q", desc = "Remove tag(s) with fixed tag keys = (! and 1 and q)" },
     { on = [ "t", "d", "f" ], run = "plugin simple-tag -- remove-tag --keys=*", desc = "Remove tag with fixed tag key = *" },
     { on = [ "t", "d", "f" ], run = "plugin simple-tag -- remove-tag --key=*", desc = "Remove tag with fixed tag key = *" },
@@ -246,7 +234,7 @@ Or you can use `keymap` to replace all other keys
     # Simply press any new tag key for selected or hovered files/folders.
     { on = [ "t", "r", "k" ], run = "plugin simple-tag -- replace-tag", desc = "Replace with a new tag (press any key)" },
 
-    # Fast Replace tag(s) with fixed keys=!1q. key=!1q also work
+    # Fast Replace tag(s) with fixed keys=!1q. key=!1q tag=!1q or tags=!1q also work
     { on = [ "t", "r", "f" ], run = "plugin simple-tag -- replace-tag --keys=!1q", desc = "Replace tag(s) with fixed tag keys = (! and 1 and q)" },
     { on = [ "t", "r", "f" ], run = "plugin simple-tag -- replace-tag --keys=*", desc = "Replace tag(s) with fixed tag key = *" },
     { on = [ "t", "r", "f" ], run = "plugin simple-tag -- replace-tag --key=*", desc = "Replace tag(s) with fixed tag key = *" },
@@ -297,7 +285,7 @@ Or you can use `keymap` to replace all other keys
     # Simply press any new tag key to filter files/folders containing that tag in current directory.
     { on = [ "t", "f" ], run = "plugin simple-tag -- filter", desc = "Filter files/folders by a tag (press any key)" },
 
-    # Fast Filter files/folders with fixed keys=!1q. key=!1q also work
+    # Fast Filter files/folders with fixed keys=!1q. key=!1q tag=!1q or tags=!1q also work
     # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --key=!", desc = "Filter files/folders by a fixed tag = !" },
     # { on = [ "t", "f" ], run = "plugin simple-tag -- filter --keys=!1q", desc = "Filter files/folders by multiple fixed tag(s) (! and 1 and q)" },
 
@@ -316,32 +304,46 @@ Or you can use `keymap` to replace all other keys
 
     #  ─────────────────────── VISUAL SELECT FILES/FOLDERS BY TAGS: ───────────────────────
 
-    # Avaiable selection modes:
-    # replace → Replace selected list with tagged files/folders (Default if mode isn't specified)
-    # unite → Combine all files/folders from already selected files/folders and files/folders with selected tag.
-    # intersect → Keep only the overlapping files/folders.
-    # subtract → Deselect files/folders which has selected tag
-    # exclude → Keep only the non-overlapping files/folders.
-    # undo → Undo/Redo selection (5 mode above)
+    # Avaiable selection actions:
+    # replace → Replaces the current selection list with files/folders that have the selected tag.
+    # unite → Combines the currently selected files/folders with those that have the selected tag.
+    # intersect → Keeps only the files/folders that are present in both the current selection and the tagged items.
+    # subtract → Deselects files/folders that have the selected tag.
+    # exclude → Keeps only the files/folders that do not have the selected tag.
+    # undo → Undos or redoes the last selection action.
 
-    # Default mode = replace -> replace the whole selection list with tagged files/folders
     # which_key will popup to choose selection mode
+    # And a tag hint window will show up.
+    # Simply select a selection mode then press any tag key to select files/folders
+    { on = [ "t", "s", "t" ], run = "plugin simple-tag -- toggle-select", desc = "Select a selection action then select a tag key (toggle-select)" },
+    # fixed tag(s). --keys=!1q or --key=!1q or --tag=!1q or --tags=!1q. They are the same.
+    { on = [ "t", "s", "t" ], run = "plugin simple-tag -- toggle-select --keys=!1q", desc = "" },
+
+    # Run action on files/folders by a tag.
     # A tag hint window will show up.
-    # Simply select selection mode then press any tag key to select files/folders containing that tag in current directory.
-    { on = [ "t", "s" ], run = "plugin simple-tag -- toggle-select", desc = "Selection only tagged files/folders (press any tag key to select)" },
+    # Simply press any tag key to do the folowing action:
+    { on = [ "t", "s", "r" ], run = "plugin simple-tag -- replace-select", desc = "replace-select" },
+    { on = [ "t", "s", "u" ], run = "plugin simple-tag -- unite-select", desc = "unite-select" },
+    { on = [ "t", "s", "i" ], run = "plugin simple-tag -- intersect-select", desc = "intersect-select" },
+    { on = [ "t", "s", "s" ], run = "plugin simple-tag -- subtract-select", desc = "subtract-select" },
+    { on = [ "t", "s", "e" ], run = "plugin simple-tag -- exclude-select", desc = "exclude-select" },
+    # Run action on files/folders by fixed tag(s). --keys=!1q or --key=!1q or --tag=!1q or --tags=!1q. They are the same.
+    { on = [ "t", "s", "e" ], run = "plugin simple-tag -- replace-select --keys=!1q", desc = "Replaces the current selection list with files/folders that have (! and 1 and q) tag(s)" },
 
-    # Fast select any files/folders with fixed tag key = q.
-    # You can remove "--mode=replace" as it's the default mode.
-    { on = [ "t", "q" ], run = "plugin simple-tag -- toggle-select --mode=replace --tag=q", desc = "Selection only files/folders with tag key = q" },
-
-    # Fixed selection mode = unite.
-    # This won't show which_key popup
+    # Run action on files/folders by tag(s) with value from input box.
     # A tag hint window will show up.
-    # just press any tag key to unite selection files/folders containing that tag in current directory.
-    { on = [ "t", "s", "u" ], run = "plugin simple-tag -- toggle-select --mode=unite", desc = "Add tagged files/folders to selection (press any tag key to select)" },
+    # Simply input tag key(s) to do the folowing action:
+    { on = [ "t", "s", "R" ], run = "plugin simple-tag -- replace-select --input", desc = "replace-select --input" },
+    { on = [ "t", "s", "U" ], run = "plugin simple-tag -- unite-select --input", desc = "unite-select --input" },
+    { on = [ "t", "s", "I" ], run = "plugin simple-tag -- intersect-select --input", desc = "intersect-select --input" },
+    { on = [ "t", "s", "S" ], run = "plugin simple-tag -- subtract-select --input", desc = "subtract-select --input" },
+    { on = [ "t", "s", "E" ], run = "plugin simple-tag -- exclude-select --input", desc = "exclude-select --input" },
+    # it also support --mode=or when using with --input or --keys=!1q or --key=!1q or --tag=!1q or --tags=!1q
+    { on = [ "t", "s", "R" ], run = "plugin simple-tag -- replace-select --input --mode=or", desc = "replace-select --input --mode=or" },
+    { on = [ "t", "s", "R" ], run = "plugin simple-tag -- replace-select --keys=!1q --mode=or", desc = "replace-select --keys=!1q --mode=or" },
 
-    # Undo/Redo selection (only works after using 6 modes above)
-    { on = [ "t", "u" ], run = "plugin simple-tag -- toggle-select --mode=undo", desc = "Undo selection action" },
+    # Undo/Redo selection (only works after using 5 modes above)
+    { on = [ "t", "s", "u" ], run = "plugin simple-tag -- undo-select", desc = "Undos/Redos the last selection action" },
 ]
 ```
 

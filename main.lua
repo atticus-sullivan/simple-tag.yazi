@@ -29,7 +29,7 @@ local CAND_TAG_KEYS = {
 	{ on = "m" }
 }
 
-local CAND_MODES = {
+local CAND_SELECTION_ACTION = {
 	-- number + special characters
 	{ on = "1", desc = "Select Only tagged files" },
 	{ on = "2", desc = "Select tagged files (Unite mode)" },
@@ -67,6 +67,12 @@ local FILTER_MODE = {
 	["and"] = "and",
 }
 
+---@enum SELECTION_MODE
+local SELECTION_MODE = {
+	["or"] = "or",
+	["and"] = "and",
+}
+
 ---@enum ACTION_TAG_MODE
 local TAG_ACTION = {
 	remove = "remove-tag",
@@ -76,7 +82,15 @@ local TAG_ACTION = {
 	edit = "edit-tag",
 	clear = "clear",
 	toggle_ui = "toggle-ui",
+
 	toggle_select = "toggle-select",
+	unite_select = "unite-select",
+	subtract_select = "subtract-select",
+	intersect_select = "intersect-select",
+	exclude_select = "exclude-select",
+	replace_select = "replace-select",
+	undo_select = "undo-select",
+
 	filter = "filter",
 	files_deleted = "files-deleted",
 	files_renamed = "files-renamed",
@@ -88,15 +102,6 @@ local UI_MODE_ORDERED = {
 	UI_MODE.text,
 }
 
----@enum SELECTION_MODE
-local SELECTION_MODE = {
-	UNITE = "unite",
-	SUBTRACT = "subtract",
-	INTERSECT = "intersect",
-	EXCLUDE = "exclude",
-	UNDO = "undo",
-	REPLACE = "replace",
-}
 ---@enum NOTIFY_MSG
 local NOTIFY_MSG = {
 	TAG_KEY_INVALID = "Tag key should be a single character",
@@ -127,6 +132,10 @@ end)
 
 local function fail(s, ...)
 	ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "error" })
+end
+
+local function warn(s, ...)
+	ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "warn" })
 end
 
 local function success(s, ...)
@@ -270,14 +279,10 @@ local function tbl_exclude(array1, array2)
 end
 
 local function tbl_is_subset(small, large)
-	local lookup = {}
-
-	for _, v in ipairs(large) do
-		lookup[v] = true
-	end
+	local set1 = tbl_to_set(large)
 
 	for _, v in ipairs(small) do
-		if not lookup[v] then
+		if not set1[v] then
 			return false
 		end
 	end
@@ -598,22 +603,23 @@ local function toggle_tag(new_tag_keys, mode)
 end
 
 local function show_cands_ui_modes()
-	local choice_mode = ya.which({ cands = CAND_MODES })
-	local selected_mode = CAND_MODES[choice_mode].on
-	if not selected_mode then
-		return ""
-	elseif selected_mode == "1" then
-		return SELECTION_MODE.REPLACE
-	elseif selected_mode == "2" then
-		return SELECTION_MODE.UNITE
-	elseif selected_mode == "3" then
-		return SELECTION_MODE.SUBTRACT
-	elseif selected_mode == "4" then
-		return SELECTION_MODE.INTERSECT
-	elseif selected_mode == "5" then
-		return SELECTION_MODE.EXCLUDE
-	elseif selected_mode == "6" then
-		return SELECTION_MODE.UNDO
+	local choice_action = ya.which({ cands = CAND_SELECTION_ACTION })
+	if not choice_action then
+		return
+	end
+	local action = CAND_SELECTION_ACTION[choice_action].on
+	if action == "1" then
+		return TAG_ACTION.replace_select
+	elseif action == "2" then
+		return TAG_ACTION.unite_select
+	elseif action == "3" then
+		return TAG_ACTION.subtract_select
+	elseif action == "4" then
+		return TAG_ACTION.intersect_select
+	elseif action == "5" then
+		return TAG_ACTION.exclude_select
+	elseif action == "6" then
+		return TAG_ACTION.undo_select
 	end
 end
 
@@ -755,7 +761,7 @@ function M:entry(job)
 		or action == TAG_ACTION.replace
 	then
 		local selected_tag_keys = {}
-		local inputted_tags = job.args.key or job.args.keys
+		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
 		local input_mode = job.args.input
 		-- Mode: remove, add, toggle
 		local toggle_mode = action
@@ -829,12 +835,38 @@ function M:entry(job)
 			end
 		end
 		broadcast(PUBSUB_KIND.ui_mode_changed, ui_mode)
-	elseif action == TAG_ACTION.toggle_select then
-		local select_mode = job.args.mode or SELECTION_MODE.REPLACE
-		local selected_tag_key = job.args.tag
+	elseif
+		action == TAG_ACTION.toggle_select
+		or action == TAG_ACTION.replace_select
+		or action == TAG_ACTION.unite_select
+		or action == TAG_ACTION.subtract_select
+		or action == TAG_ACTION.intersect_select
+		or action == TAG_ACTION.exclude_select
+		or action == TAG_ACTION.undo_select
+	then
+		local select_mode = job.args.mode or SELECTION_MODE["and"]
+		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
+		local input_mode = job.args.input
+		local selected_tag_keys = {}
+		-- NOTE: BACKWARD COMPATIBILITY warning
+		if select_mode ~= SELECTION_MODE["and"] and select_mode ~= SELECTION_MODE["or"] then
+			warn(
+				"Unsupported selection mode: %s, may be you are using an old configuration of simple-tag plugin, please check the documentation.",
+				select_mode
+			)
+		end
+		-- NOTE: BACKWARD COMPATIBILITY warning
+
 		local new_selected_files = {}
+		if action == TAG_ACTION.toggle_select then
+			action = show_cands_ui_modes()
+			if not action then
+				return
+			end
+		end
+
 		-- Mode undo
-		if select_mode == SELECTION_MODE.UNDO then
+		if action == TAG_ACTION.undo_select then
 			new_selected_files = get_state(STATE_KEY.preserve_selected_files) or {}
 			if new_selected_files == nil then
 				return
@@ -842,45 +874,47 @@ function M:entry(job)
 			local preseve_selected_files = selected_files()
 			set_state(STATE_KEY.preserve_selected_files, preseve_selected_files)
 		else
-			if not selected_tag_key then
-				toggle_tags_hints()
+			if not inputted_tags then
+				local title = "Select tags"
+					.. (select_mode == SELECTION_MODE["and"] and "" or ", MODE=(" .. select_mode .. ")")
+					.. ":"
 
-				local choice = ya.which({ cands = CAND_TAG_KEYS, silent = true })
-				toggle_tags_hints()
-				if not choice then
-					return
+				if not inputted_tags then
+					inputted_tags = show_cands_input_tags(title, input_mode)
 				end
-				selected_tag_key = CAND_TAG_KEYS[choice].on
-			end
-			if not select_mode then
-				select_mode = show_cands_ui_modes()
-				if not select_mode then
+
+				if not inputted_tags then
 					return
 				end
 			end
+			for _, code in utf8.codes(inputted_tags) do
+				local key = utf8.char(code)
+				table.insert(selected_tag_keys, key)
+			end
+
 			local tags_tbl = tostring(get_cwd())
 			local tags_db = get_state(STATE_KEY.tags_database)
 			local tagged_filenames = tags_db[tags_tbl] or {}
 			for fname, tags in pairs(tagged_filenames) do
-				for _, tag in ipairs(tags) do
-					if tag == selected_tag_key then
-						table.insert(new_selected_files, pathJoin(tags_tbl, fname))
-						break
-					end
+				if
+					(select_mode == SELECTION_MODE["and"] and tbl_is_subset(selected_tag_keys, tags))
+					or (select_mode == SELECTION_MODE["or"] and tbl_contains_any(tags, selected_tag_keys))
+				then
+					table.insert(new_selected_files, pathJoin(tags_tbl, fname))
 				end
 			end
 			local preseve_selected_files = selected_files()
 			set_state(STATE_KEY.preserve_selected_files, preseve_selected_files)
 			local old_selected_files = tbl_deep_clone(preseve_selected_files)
-			if select_mode == SELECTION_MODE.REPLACE then
+			if action == TAG_ACTION.replace_select then
 				-- no needs to do anything else
-			elseif select_mode == SELECTION_MODE.UNITE then
+			elseif action == TAG_ACTION.unite_select then
 				new_selected_files = tbl_unite(old_selected_files, new_selected_files)
-			elseif select_mode == SELECTION_MODE.INTERSECT then
+			elseif action == TAG_ACTION.intersect_select then
 				new_selected_files = tbl_intersect(old_selected_files, new_selected_files)
-			elseif select_mode == SELECTION_MODE.SUBTRACT then
+			elseif action == TAG_ACTION.subtract_select then
 				new_selected_files = tbl_subtract(old_selected_files, new_selected_files)
-			elseif select_mode == SELECTION_MODE.EXCLUDE then
+			elseif action == TAG_ACTION.exclude_select then
 				new_selected_files = tbl_exclude(old_selected_files, new_selected_files)
 			else
 				return
@@ -897,7 +931,7 @@ function M:entry(job)
 		end
 	elseif action == TAG_ACTION.filter then
 		local filter_tags = {}
-		local inputted_tags = job.args.keys
+		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
 		local filter_mode = job.args.mode or FILTER_MODE["and"]
 		local input_mode = job.args.input
 		local title = "Search tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":"
@@ -942,9 +976,8 @@ function M:entry(job)
 			local cwd = get_cwd()
 
 			local id = ya.id("ft")
-			local _cwd = cwd:into_search(
-				"Tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ": " .. table.concat(filter_tags, " ")
-			)
+			local _cwd =
+				cwd:into_search("MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")")
 			ya.mgr_emit("cd", { Url(_cwd) })
 			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
 
