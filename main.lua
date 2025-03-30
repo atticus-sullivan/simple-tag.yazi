@@ -950,9 +950,9 @@ function M:entry(job)
 		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
 		local filter_mode = job.args.mode or FILTER_MODE["and"]
 		local input_mode = job.args.input
-		local all_tags = job.args.all_tags
-		if all_tags then
-			inputted_tags = {}
+		local any_tag = job.args.any_tag
+		if any_tag then
+			inputted_tags = ""
 		end
 		
 		local title = "Search tags" .. (filter_mode == FILTER_MODE["or"] and " (or)" or "") .. ":"
@@ -978,13 +978,13 @@ function M:entry(job)
 			local query = ""
 			if filter_mode == FILTER_MODE["and"] then
 				for fname, tags in pairs(tagged_filenames) do
-					if tbl_is_subset(filter_tags, tags) then
+					if any_tag or tbl_is_subset(filter_tags, tags) then
 						query = query .. escape_regex(fname) .. "|"
 					end
 				end
 			else
 				for fname, tags in pairs(tagged_filenames) do
-					if tbl_contains_any(tags, filter_tags) then
+					if any_tag or tbl_contains_any(tags, filter_tags) then
 						query = query .. escape_regex(fname) .. "|"
 						break
 					end
@@ -1005,7 +1005,7 @@ function M:entry(job)
 			local files = {}
 			for fname, tags in pairs(tagged_filenames) do
 				if
-					all_tags
+					any_tag
 					or (filter_mode == FILTER_MODE["and"] and tbl_is_subset(filter_tags, tags))
 					or (filter_mode == FILTER_MODE["or"] and tbl_contains_any(tags, filter_tags))
 				then
