@@ -93,7 +93,7 @@ local TAG_ACTION = {
 
 	filter = "filter",
 	files_deleted = "files-deleted",
-	files_renamed = "files-renamed",
+	files_transfered = "files-transfered",
 }
 
 local UI_MODE_ORDERED = {
@@ -116,6 +116,8 @@ local PUBSUB_KIND = {
 	files_trash = "trash",
 	file_renamed = "rename",
 	files_bulk_renamed = "bulk",
+	files_yank = "yank",
+	files_move = "move",
 }
 
 --          ╭─────────────────────────────────────────────────────────╮
@@ -487,10 +489,25 @@ function M:setup(opts)
 		return ui.Line(spans)
 	end, st[STATE_KEY.linemode_order])
 
+	ps.sub(PUBSUB_KIND.files_move, function(payload)
+		local args = ya.quote(TAG_ACTION.files_transfered)
+		local changed_files = {}
+		for _, item in pairs(payload.items) do
+			local from = item.from
+			local to = item.to
+			changed_files[tostring(from)] = tostring(to)
+		end
+		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
+		ya.manager_emit("plugin", {
+			self._id,
+			args,
+		})
+	end)
+
 	ps.sub(PUBSUB_KIND.file_renamed, function(payload)
 		local changed_files = {}
 		changed_files[tostring(payload.from)] = tostring(payload.to)
-		local args = ya.quote(TAG_ACTION.files_renamed)
+		local args = ya.quote(TAG_ACTION.files_transfered)
 		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
 		ya.manager_emit("plugin", {
 			self._id,
@@ -499,7 +516,7 @@ function M:setup(opts)
 	end)
 
 	ps.sub(PUBSUB_KIND.files_bulk_renamed, function(payload)
-		local args = ya.quote(TAG_ACTION.files_renamed)
+		local args = ya.quote(TAG_ACTION.files_transfered)
 		local changed_files = {}
 		for from, to in pairs(payload) do
 			changed_files[tostring(from)] = tostring(to)
@@ -548,10 +565,10 @@ function M:setup(opts)
 	end)
 end
 
-local function toggle_tag(new_tag_keys, mode)
+local function toggle_tag(files, new_tag_keys, mode)
 	local tags_db = get_state(STATE_KEY.tags_database)
 	local changed_tags_db = {}
-	for _, raw_url in ipairs(selected_or_hovered_files()) do
+	for _, raw_url in ipairs(files) do
 		local url = Url(raw_url)
 		local tags_tbl = tostring(url:parent())
 		local fname = tostring(url:name())
@@ -781,6 +798,7 @@ function M:entry(job)
 		or action == TAG_ACTION.replace
 	then
 		local selected_tag_keys = {}
+		local inputted_files = selected_or_hovered_files()
 		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
 		local input_mode = job.args.input
 		-- Mode: remove, add, toggle
@@ -802,7 +820,7 @@ function M:entry(job)
 		for _, code in utf8.codes(inputted_tags) do
 			table.insert(selected_tag_keys, utf8.char(code))
 		end
-		toggle_tag(selected_tag_keys, toggle_mode)
+		toggle_tag(inputted_files, selected_tag_keys, toggle_mode)
 	elseif action == TAG_ACTION.edit then
 		local files_to_update = selected_or_hovered_files()
 		if #files_to_update == 0 then
@@ -1016,7 +1034,7 @@ function M:entry(job)
 		end
 	elseif action == TAG_ACTION.files_deleted then
 		delete_tags(table.remove(job.args, 1))
-	elseif action == TAG_ACTION.files_renamed then
+	elseif action == TAG_ACTION.files_transfered then
 		if job.args.changes then
 			local changed_tags_db = {}
 			local tags_db = get_state(STATE_KEY.tags_database)
@@ -1024,15 +1042,20 @@ function M:entry(job)
 			for from, to in pairs(changes) do
 				local from_url = Url(from)
 				local to_url = Url(to)
-				local tags_tbl = tostring(from_url:parent())
+				local old_tags_tbl = tostring(from_url:parent())
+				local new_tags_tbl = tostring(to_url:parent())
 				local old_fname = tostring(from_url:name())
 				local new_fname = tostring(to_url:name())
 
-				if tags_tbl and old_fname and new_fname then
-					if tags_db and tags_tbl and tags_db[tags_tbl] then
-						tags_db[tags_tbl][new_fname] = tags_db[tags_tbl][old_fname]
-						tags_db[tags_tbl][old_fname] = nil
-						changed_tags_db[tags_tbl] = tags_db[tags_tbl]
+				if old_tags_tbl and old_fname and new_fname then
+					if tags_db and old_tags_tbl and tags_db[old_tags_tbl] and new_tags_tbl then
+						if not tags_db[new_tags_tbl] then
+							tags_db[new_tags_tbl] = {}
+						end
+						tags_db[new_tags_tbl][new_fname] = tags_db[old_tags_tbl][old_fname]
+						tags_db[old_tags_tbl][old_fname] = nil
+						changed_tags_db[old_tags_tbl] = tags_db[old_tags_tbl]
+						changed_tags_db[new_tags_tbl] = tags_db[new_tags_tbl]
 					end
 				end
 			end

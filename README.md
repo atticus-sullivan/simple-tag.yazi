@@ -1,6 +1,7 @@
 # simple-tag
 
 <!--toc:start-->
+
 - [simple-tag](#simple-tag)
   - [Overview](#overview)
   - [Requirements](#requirements)
@@ -12,13 +13,23 @@
     - [Keybindings in `keymap.toml`](#keybindings-in-keymaptoml)
     - [Customizing the Theme for tag hints window](#customizing-the-theme-for-tag-hints-window)
   - [For Developers](#for-developers)
-<!--toc:end-->
+  <!--toc:end-->
 
 ## Overview
 
 simple-tag is a Yazi plugin that allows you to add tags to files and folders. Each tag is associated with a unique key.
 
 > Disclaimer: This is not mactag and does not utilize mactag.
+
+## Features
+
+- Toggle, Add, Remove, Replace, Clear, Edit Tag(s). Supported input multiple tags.
+- Filter Files/Folders by Tag(s).
+- Visual Selection files/folders by Tag(s) (Replace, Unite, Subtract, Intersect, Exclude). Undo/Redo visual selection.
+- Change Tag Icon/Text/Hidden Indicator.
+- Tag Hints, will show up whenever you need to input or select tag(s).
+- Automatically transfer tags after moving/renaming/bulk-renaming files/folders.
+- Automatically clear tags when files/folders are deleted or trashed.
 
 ## Requirements
 
