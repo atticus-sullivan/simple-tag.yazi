@@ -4,6 +4,7 @@
 
 - [simple-tag](#simple-tag)
   - [Overview](#overview)
+  - [Features](#features)
   - [Requirements](#requirements)
   - [Installation](#installation)
   - [Previews](#previews)
