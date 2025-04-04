@@ -1,4 +1,5 @@
 --- @since 25.2.7
+--- NOTE: REMOVE :parent() :name() :is_hovered() after upgrade to v25.4.4
 
 local PackageName = "simple-tag"
 local M = {}
@@ -367,7 +368,9 @@ local function write_tags_db(tags_db)
 			-- delete mode
 			fs.remove("file", Url(pathJoin(tags_tbl_save_dir, "tags.json")))
 			fs.remove("dir_clean", Url(tags_tbl_save_dir))
-			local tags_parent_tbl = Url(tags_tbl_save_dir):parent()
+			local save_dir_url = Url(tags_tbl_save_dir)
+			local tags_parent_tbl = type(save_dir_url.parent) == "function" and save_dir_url:parent()
+				or save_dir_url.parent
 			if tags_parent_tbl and tags_parent_tbl ~= save_path then
 				fs.remove("dir_clean", tags_parent_tbl)
 			end
@@ -396,7 +399,7 @@ end
 function M:fetch(job)
 	local tags_db = get_state(STATE_KEY.tags_database)
 	for _, file in ipairs(job.files) do
-		local tags_tbl = tostring(file.url:parent())
+		local tags_tbl = tostring(type(file.url.parent) == "function" and file.url:parent() or file.url.parent)
 		if tags_db[tags_tbl] == nil then
 			tags_db[tags_tbl] = read_tags_tbl(tags_tbl)
 		end
@@ -413,8 +416,8 @@ function M:has_tags(file, filter_tags)
 	else
 		url = file.url
 	end
-	local tags_tbl = tostring(url:parent())
-	local fname = tostring(url:name())
+	local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
+	local fname = tostring(type(url.name) == "function" and url:name() or url.name)
 
 	local tags_database = get_state(STATE_KEY.tags_database)
 	if tags_database[tags_tbl] and tags_database[tags_tbl][fname] then
@@ -457,7 +460,8 @@ function M:setup(opts)
 		if st[STATE_KEY.ui_mode] == UI_MODE.hidden then
 			return ""
 		end
-		local tags_tbl = tostring(_self._file.url:parent())
+		local tags_tbl =
+			tostring(type(_self._file.url.parent) == "function" and _self._file.url:parent() or _self._file.url.parent)
 		local fname = _self._file.name
 		local spans = {}
 		if st[STATE_KEY.tags_database][tags_tbl] and st[STATE_KEY.tags_database][tags_tbl][fname] then
@@ -469,7 +473,9 @@ function M:setup(opts)
 			table.sort(tags)
 			for _, tag in ipairs(tags) do
 				local style = ui.Style()
-				if _self._file:is_hovered() then
+				if
+					type(_self._file.is_hovered) == "function" and _self._file:is_hovered() or _self._file.is_hovered
+				then
 					if is_reversed_color then
 						style:bg(st[STATE_KEY.colors][tag] and st[STATE_KEY.colors][tag] or "reset")
 					else
@@ -570,8 +576,8 @@ local function toggle_tag(files, new_tag_keys, mode)
 	local changed_tags_db = {}
 	for _, raw_url in ipairs(files) do
 		local url = Url(raw_url)
-		local tags_tbl = tostring(url:parent())
-		local fname = tostring(url:name())
+		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
+		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
 		if not tags_db[tags_tbl] then
 			tags_db[tags_tbl] = {}
 		end
@@ -777,8 +783,8 @@ local function delete_tags(files_to_clear)
 		if url == nil then
 			goto continue
 		end
-		local tags_tbl = tostring(url:parent())
-		local fname = tostring(url:name())
+		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
+		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
 		if tags_db and tags_tbl and tags_db[tags_tbl] then
 			tags_db[tags_tbl][fname] = nil
 			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
@@ -832,11 +838,11 @@ function M:entry(job)
 		for _, url_raw in ipairs(files_to_update) do
 			local updated_tags = {}
 			local url = Url(url_raw)
-			local tags_tbl = tostring(url:parent())
+			local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
 			if not tags_db[tags_tbl] then
 				tags_db[tags_tbl] = {}
 			end
-			local fname = url:name()
+			local fname = type(url.name) == "function" and url:name() or url.name
 			local title = "Edit tags (" .. fname .. "):"
 			local inputted_tags = show_cands_input_tags(title, true, table.concat(tags_db[tags_tbl][fname] or {}))
 			if inputted_tags == nil then
@@ -1010,8 +1016,8 @@ function M:entry(job)
 			local cwd = get_cwd()
 
 			local id = ya.id("ft")
-			local _cwd =
-				cwd:into_search("MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")")
+			local filter_title = "MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")"
+			local _cwd = cwd:into_search(filter_title)
 			ya.mgr_emit("cd", { Url(_cwd) })
 			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
 
@@ -1042,10 +1048,11 @@ function M:entry(job)
 			for from, to in pairs(changes) do
 				local from_url = Url(from)
 				local to_url = Url(to)
-				local old_tags_tbl = tostring(from_url:parent())
-				local new_tags_tbl = tostring(to_url:parent())
-				local old_fname = tostring(from_url:name())
-				local new_fname = tostring(to_url:name())
+				local old_tags_tbl =
+					tostring(type(from_url.parent) == "function" and from_url:parent() or from_url.parent)
+				local new_tags_tbl = tostring(type(to_url.parent) == "function" and to_url:parent() or to_url.parent)
+				local old_fname = tostring(type(from_url.name) == "function" and from_url:name() or from_url.name)
+				local new_fname = tostring(type(to_url.name) == "function" and to_url:name() or to_url.name)
 
 				if old_tags_tbl and old_fname and new_fname then
 					if tags_db and old_tags_tbl and tags_db[old_tags_tbl] and new_tags_tbl then
