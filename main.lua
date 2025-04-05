@@ -1040,7 +1040,8 @@ function M:entry(job)
 			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
 	elseif action == TAG_ACTION.files_deleted then
-		delete_tags(table.remove(job.args, 1))
+		table.remove(job.args, 1)
+		delete_tags(job.args)
 	elseif action == TAG_ACTION.files_transfered then
 		if job.args.changes then
 			local changed_tags_db = {}
