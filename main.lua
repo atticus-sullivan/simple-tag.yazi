@@ -1,5 +1,6 @@
 --- @since 25.2.7
 --- NOTE: REMOVE :parent() :name() :is_hovered() after upgrade to v25.4.4
+--- https://github.com/sxyazi/yazi/pull/2572
 
 local PackageName = "simple-tag"
 local M = {}
