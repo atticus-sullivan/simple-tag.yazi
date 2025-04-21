@@ -964,12 +964,16 @@ function M:entry(job)
 
 		-- clear selection
 		ya.manager_emit("escape", { select = true })
-		for _, url in ipairs(new_selected_files) do
-			local cha = fs.cha(Url(url), {})
+		local valid_selected_files = {}
+		for _, url_raw in ipairs(new_selected_files) do
+			local url = Url(url_raw)
+			local cha = fs.cha(url, {})
 			if cha then
-				ya.manager_emit("toggle", { Url(url), state = "on" })
+				valid_selected_files[#valid_selected_files + 1] = url_raw
 			end
 		end
+		valid_selected_files.state = "on"
+		ya.manager_emit("toggle_all", valid_selected_files)
 	elseif action == TAG_ACTION.filter then
 		local filter_tags = {}
 		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
