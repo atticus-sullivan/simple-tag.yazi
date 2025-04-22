@@ -54,6 +54,12 @@ local STATE_KEY = {
 	hints_disabled = "hints_disabled",
 	linemode_order = "linemode_order",
 	feature_flags = "feature_flags",
+	tasks_write_tags_db = "tasks_write_tags_db",
+	tasks_delete_tags = "tasks_delete_tags",
+	tasks_rename_tags = "tasks_rename_tags",
+	tasks_write_tags_db_running = "tasks_write_tags_db_running",
+	tasks_delete_tags_running = "tasks_delete_tags_running",
+	tasks_rename_tags_running = "tasks_rename_tags_running",
 }
 
 ---@enum UI_MODE
@@ -125,6 +131,20 @@ local PUBSUB_KIND = {
 --          ╭─────────────────────────────────────────────────────────╮
 --          │                        Utilities                        │
 --          ╰─────────────────────────────────────────────────────────╯
+
+local enqueue_task = ya.sync(function(state, task_name, task_data)
+	if not state[task_name] or type(state[task_name]) ~= "table" then
+		state[task_name] = {}
+	end
+	table.insert(state[task_name], task_data)
+end)
+
+local dequeue_task = ya.sync(function(state, task_name)
+	if not state[task_name] or type(state[task_name]) ~= "table" then
+		return {}
+	end
+	return table.remove(state[task_name], 1)
+end)
 
 local set_state = ya.sync(function(state, key, value)
 	state[key] = value
@@ -310,10 +330,6 @@ local render = ya.sync(function()
 	ya.render()
 end)
 
--- local get_cwd = ya.sync(function()
--- 	return tostring(cx.active.current.cwd)
--- end)
-
 local get_cwd = ya.sync(function()
 	return cx.active.current.cwd
 end)
@@ -355,17 +371,22 @@ local function read_tags_tbl(tags_tbl)
 end
 
 -- tags_db format: { "parent_abs_path a.k.a tags_tbl" = { "filename" = [ "q", "w", ... ] } }
----@param tags_db table<{[string]: table<{[string]:string[]}>}>
-local function write_tags_db(tags_db)
+local function write_tags_db()
+	if get_state(STATE_KEY.tasks_write_tags_db_running) or #get_state(STATE_KEY.tasks_write_tags_db) == 0 then
+		return
+	end
+	set_state(STATE_KEY.tasks_write_tags_db_running, true)
+	local changed_tags_db = dequeue_task(STATE_KEY.tasks_write_tags_db)
+
 	local save_path = get_state(STATE_KEY.save_path)
-	for tags_tbl, tags_tbl_records in pairs(tags_db) do
+	for tags_tbl, tags_tbl_records in pairs(changed_tags_db) do
 		local tags_tbl_save_dir = pathJoin(save_path, tags_tbl)
 		for fname, tags in pairs(tags_tbl_records) do
 			if #tags == 0 then
-				tags_db[tags_tbl][fname] = nil
+				changed_tags_db[tags_tbl][fname] = nil
 			end
 		end
-		if next(tags_db[tags_tbl]) == nil then
+		if next(changed_tags_db[tags_tbl]) == nil then
 			-- delete mode
 			fs.remove("file", Url(pathJoin(tags_tbl_save_dir, "tags.json")))
 			fs.remove("dir_clean", Url(tags_tbl_save_dir))
@@ -391,6 +412,8 @@ local function write_tags_db(tags_db)
 		end
 		broadcast(PUBSUB_KIND.tags_tbl_changed, tags_tbl)
 	end
+	set_state(STATE_KEY.tasks_write_tags_db_running, false)
+	write_tags_db()
 end
 
 --          ╭─────────────────────────────────────────────────────────╮
@@ -428,12 +451,44 @@ function M:has_tags(file, filter_tags)
 	return false
 end
 
+local function delete_tags()
+	if get_state(STATE_KEY.tasks_delete_tags_running) or #get_state(STATE_KEY.tasks_delete_tags) == 0 then
+		return
+	end
+	set_state(STATE_KEY.tasks_delete_tags_running, true)
+	local files_to_clear = dequeue_task(STATE_KEY.tasks_delete_tags)
+
+	-- get changes tags
+	local changed_tags_db = {}
+	local tags_db = get_state(STATE_KEY.tags_database)
+	for _, raw_url in ipairs(files_to_clear) do
+		local url = type(raw_url) == "string" and Url(raw_url) or raw_url
+		if url == nil then
+			goto continue
+		end
+		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
+		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
+		if tags_db and tags_tbl and tags_db[tags_tbl] then
+			tags_db[tags_tbl][fname] = nil
+			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
+		end
+		::continue::
+	end
+	enqueue_task(STATE_KEY.tasks_write_tags_db, changed_tags_db)
+	write_tags_db()
+	set_state(STATE_KEY.tasks_delete_tags_running, false)
+	delete_tags()
+end
+
 function M:setup(opts)
 	local st = self
 	local save_path = pathJoin(
 		(ya.target_family() == "windows" and os.getenv("APPDATA") .. "\\yazi\\config\\tags")
 			or (os.getenv("HOME") .. "/.config/yazi/tags")
 	)
+	st[STATE_KEY.tasks_write_tags_db] = {}
+	st[STATE_KEY.tasks_delete_tags] = {}
+	st[STATE_KEY.tasks_rename_tags] = {}
 	st[STATE_KEY.tags_database] = {}
 	st[STATE_KEY.ui_mode] = UI_MODE.icon
 	st[STATE_KEY.colors] = {}
@@ -497,14 +552,14 @@ function M:setup(opts)
 	end, st[STATE_KEY.linemode_order])
 
 	ps.sub(PUBSUB_KIND.files_move, function(payload)
-		local args = ya.quote(TAG_ACTION.files_transfered)
 		local changed_files = {}
 		for _, item in pairs(payload.items) do
 			local from = item.from
 			local to = item.to
 			changed_files[tostring(from)] = tostring(to)
 		end
-		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
+		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
+		local args = ya.quote(TAG_ACTION.files_transfered)
 		ya.manager_emit("plugin", {
 			self._id,
 			args,
@@ -514,8 +569,8 @@ function M:setup(opts)
 	ps.sub(PUBSUB_KIND.file_renamed, function(payload)
 		local changed_files = {}
 		changed_files[tostring(payload.from)] = tostring(payload.to)
+		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
 		ya.manager_emit("plugin", {
 			self._id,
 			args,
@@ -523,12 +578,12 @@ function M:setup(opts)
 	end)
 
 	ps.sub(PUBSUB_KIND.files_bulk_renamed, function(payload)
-		local args = ya.quote(TAG_ACTION.files_transfered)
 		local changed_files = {}
 		for from, to in pairs(payload) do
 			changed_files[tostring(from)] = tostring(to)
 		end
-		args = args .. " " .. "--changes=" .. ya.quote(tostring(ya.json_encode(changed_files)))
+		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
+		local args = ya.quote(TAG_ACTION.files_transfered)
 		ya.manager_emit("plugin", {
 			self._id,
 			args,
@@ -537,9 +592,11 @@ function M:setup(opts)
 
 	ps.sub(PUBSUB_KIND.files_deleted, function(payload)
 		local args = ya.quote(TAG_ACTION.files_deleted)
+		local changed_files = {}
 		for _, url in ipairs(payload.urls) do
-			args = args .. " " .. ya.quote(tostring(url))
+			table.insert(changed_files, tostring(url))
 		end
+		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
 		ya.manager_emit("plugin", {
 			self._id,
 			args,
@@ -548,9 +605,11 @@ function M:setup(opts)
 
 	ps.sub(PUBSUB_KIND.files_trash, function(payload)
 		local args = ya.quote(TAG_ACTION.files_deleted)
+		local changed_files = {}
 		for _, url in ipairs(payload.urls) do
-			args = args .. " " .. ya.quote(tostring(url))
+			table.insert(changed_files, tostring(url))
 		end
+		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
 		ya.manager_emit("plugin", {
 			self._id,
 			args,
@@ -623,7 +682,8 @@ local function toggle_tag(files, new_tag_keys, mode)
 		changed_tags_db[tags_tbl] = tags_db[tags_tbl]
 	end
 
-	write_tags_db(changed_tags_db)
+	enqueue_task(STATE_KEY.tasks_write_tags_db, changed_tags_db)
+	write_tags_db()
 end
 
 local function show_cands_ui_modes()
@@ -775,26 +835,6 @@ local function show_cands_input_tags(title, input_mode, default_input_value)
 	end
 end
 
-local function delete_tags(files_to_clear)
-	-- get changes tags
-	local changed_tags_db = {}
-	local tags_db = get_state(STATE_KEY.tags_database)
-	for _, raw_url in ipairs(files_to_clear) do
-		local url = Url(raw_url)
-		if url == nil then
-			goto continue
-		end
-		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
-		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
-		if tags_db and tags_tbl and tags_db[tags_tbl] then
-			tags_db[tags_tbl][fname] = nil
-			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
-		end
-		::continue::
-	end
-	write_tags_db(changed_tags_db)
-end
-
 function M:entry(job)
 	local action = job.args[1]
 	ya.manager_emit("escape", { visual = true })
@@ -856,10 +896,11 @@ function M:entry(job)
 			tags_db[tags_tbl][fname] = #updated_tags == 0 and nil or updated_tags
 			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
 		end
-		write_tags_db(changed_tags_db)
+		enqueue_task(STATE_KEY.tasks_write_tags_db, changed_tags_db)
+		write_tags_db()
 	elseif action == TAG_ACTION.clear then
-		local files_to_clear = selected_or_hovered_files()
-		delete_tags(files_to_clear)
+		enqueue_task(STATE_KEY.tasks_delete_tags, selected_or_hovered_files())
+		delete_tags()
 	elseif action == TAG_ACTION.toggle_ui then
 		local ui_mode = job.args.mode
 		-- toggle between show icons/text keys/hidden
@@ -1044,13 +1085,12 @@ function M:entry(job)
 			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
 	elseif action == TAG_ACTION.files_deleted then
-		table.remove(job.args, 1)
-		delete_tags(job.args)
+		delete_tags()
 	elseif action == TAG_ACTION.files_transfered then
-		if job.args.changes then
+		local changes = dequeue_task(STATE_KEY.tasks_rename_tags)
+		if changes then
 			local changed_tags_db = {}
 			local tags_db = get_state(STATE_KEY.tags_database)
-			local changes = ya.json_decode(job.args.changes)
 			for from, to in pairs(changes) do
 				local from_url = Url(from)
 				local to_url = Url(to)
@@ -1072,7 +1112,8 @@ function M:entry(job)
 					end
 				end
 			end
-			write_tags_db(changed_tags_db)
+			enqueue_task(STATE_KEY.tasks_write_tags_db, changed_tags_db)
+			write_tags_db()
 		end
 	end
 end
