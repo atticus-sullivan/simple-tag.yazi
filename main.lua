@@ -1,6 +1,4 @@
---- @since 25.2.7
---- NOTE: REMOVE :parent() :name() :is_hovered() after upgrade to v25.4.4
---- https://github.com/sxyazi/yazi/pull/2572
+--- @since 25.4.8
 
 local PackageName = "simple-tag"
 local M = {}
@@ -53,7 +51,6 @@ local STATE_KEY = {
 	hints_table = "hints_table",
 	hints_disabled = "hints_disabled",
 	linemode_order = "linemode_order",
-	feature_flags = "feature_flags",
 	tasks_write_tags_db = "tasks_write_tags_db",
 	tasks_delete_tags = "tasks_delete_tags",
 	tasks_rename_tags = "tasks_rename_tags",
@@ -391,8 +388,7 @@ local function write_tags_db()
 			fs.remove("file", Url(pathJoin(tags_tbl_save_dir, "tags.json")))
 			fs.remove("dir_clean", Url(tags_tbl_save_dir))
 			local save_dir_url = Url(tags_tbl_save_dir)
-			local tags_parent_tbl = type(save_dir_url.parent) == "function" and save_dir_url:parent()
-				or save_dir_url.parent
+			local tags_parent_tbl = save_dir_url.parent
 			if tags_parent_tbl and tags_parent_tbl ~= save_path then
 				fs.remove("dir_clean", tags_parent_tbl)
 			end
@@ -423,7 +419,7 @@ end
 function M:fetch(job)
 	local tags_db = get_state(STATE_KEY.tags_database)
 	for _, file in ipairs(job.files) do
-		local tags_tbl = tostring(type(file.url.parent) == "function" and file.url:parent() or file.url.parent)
+		local tags_tbl = tostring(file.url.parent)
 		if tags_db[tags_tbl] == nil then
 			tags_db[tags_tbl] = read_tags_tbl(tags_tbl)
 		end
@@ -440,8 +436,8 @@ function M:has_tags(file, filter_tags)
 	else
 		url = file.url
 	end
-	local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
-	local fname = tostring(type(url.name) == "function" and url:name() or url.name)
+	local tags_tbl = tostring(url.parent)
+	local fname = tostring(url.name)
 
 	local tags_database = get_state(STATE_KEY.tags_database)
 	if tags_database[tags_tbl] and tags_database[tags_tbl][fname] then
@@ -466,8 +462,8 @@ local function delete_tags()
 		if url == nil then
 			goto continue
 		end
-		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
-		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
+		local tags_tbl = tostring(url.parent)
+		local fname = tostring(url.name)
 		if tags_db and tags_tbl and tags_db[tags_tbl] then
 			tags_db[tags_tbl][fname] = nil
 			changed_tags_db[tags_tbl] = tags_db[tags_tbl]
@@ -504,11 +500,6 @@ function M:setup(opts)
 		st[STATE_KEY.linemode_order] = tonumber(opts.linemode_order) or st[STATE_KEY.linemode_order]
 		st[STATE_KEY.hints_disabled] = opts.hints_disabled or false
 	end
-	-- TODO: Remove after v25.3.7
-	-- features flags
-	st[STATE_KEY.feature_flags] = {
-		is_support_new_filter_method = type(fs.op) == "function",
-	}
 
 	st[STATE_KEY.hints_table] = ya.dict_merge(tbl_deep_clone(st[STATE_KEY.icons]), tbl_deep_clone(st[STATE_KEY.colors]))
 	-- render tags
@@ -516,8 +507,7 @@ function M:setup(opts)
 		if st[STATE_KEY.ui_mode] == UI_MODE.hidden then
 			return ""
 		end
-		local tags_tbl =
-			tostring(type(_self._file.url.parent) == "function" and _self._file.url:parent() or _self._file.url.parent)
+		local tags_tbl = tostring(_self._file.url.parent)
 		local fname = _self._file.name
 		local spans = {}
 		if st[STATE_KEY.tags_database][tags_tbl] and st[STATE_KEY.tags_database][tags_tbl][fname] then
@@ -529,9 +519,7 @@ function M:setup(opts)
 			table.sort(tags)
 			for _, tag in ipairs(tags) do
 				local style = ui.Style()
-				if
-					type(_self._file.is_hovered) == "function" and _self._file:is_hovered() or _self._file.is_hovered
-				then
+				if _self._file.is_hovered then
 					if is_reversed_color then
 						style:bg(st[STATE_KEY.colors][tag] and st[STATE_KEY.colors][tag] or "reset")
 					else
@@ -560,7 +548,7 @@ function M:setup(opts)
 		end
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.manager_emit("plugin", {
+		ya.mgr_emit("plugin", {
 			self._id,
 			args,
 		})
@@ -571,7 +559,7 @@ function M:setup(opts)
 		changed_files[tostring(payload.from)] = tostring(payload.to)
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.manager_emit("plugin", {
+		ya.mgr_emit("plugin", {
 			self._id,
 			args,
 		})
@@ -584,7 +572,7 @@ function M:setup(opts)
 		end
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.manager_emit("plugin", {
+		ya.mgr_emit("plugin", {
 			self._id,
 			args,
 		})
@@ -597,7 +585,7 @@ function M:setup(opts)
 			table.insert(changed_files, tostring(url))
 		end
 		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
-		ya.manager_emit("plugin", {
+		ya.mgr_emit("plugin", {
 			self._id,
 			args,
 		})
@@ -610,7 +598,7 @@ function M:setup(opts)
 			table.insert(changed_files, tostring(url))
 		end
 		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
-		ya.manager_emit("plugin", {
+		ya.mgr_emit("plugin", {
 			self._id,
 			args,
 		})
@@ -636,8 +624,8 @@ local function toggle_tag(files, new_tag_keys, mode)
 	local changed_tags_db = {}
 	for _, raw_url in ipairs(files) do
 		local url = Url(raw_url)
-		local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
-		local fname = tostring(type(url.name) == "function" and url:name() or url.name)
+		local tags_tbl = tostring(url.parent)
+		local fname = tostring(url.name)
 		if not tags_db[tags_tbl] then
 			tags_db[tags_tbl] = {}
 		end
@@ -837,7 +825,7 @@ end
 
 function M:entry(job)
 	local action = job.args[1]
-	ya.manager_emit("escape", { visual = true })
+	ya.mgr_emit("escape", { visual = true })
 	if
 		action == TAG_ACTION.toggle
 		or action == TAG_ACTION.add
@@ -879,11 +867,11 @@ function M:entry(job)
 		for _, url_raw in ipairs(files_to_update) do
 			local updated_tags = {}
 			local url = Url(url_raw)
-			local tags_tbl = tostring(type(url.parent) == "function" and url:parent() or url.parent)
+			local tags_tbl = tostring(url.parent)
 			if not tags_db[tags_tbl] then
 				tags_db[tags_tbl] = {}
 			end
-			local fname = type(url.name) == "function" and url:name() or url.name
+			local fname = url.name
 			local title = "Edit tags (" .. fname .. "):"
 			local inputted_tags = show_cands_input_tags(title, true, table.concat(tags_db[tags_tbl][fname] or {}))
 			if inputted_tags == nil then
@@ -1004,7 +992,7 @@ function M:entry(job)
 		end
 
 		-- clear selection
-		ya.manager_emit("escape", { select = true })
+		ya.mgr_emit("escape", { select = true })
 		local valid_selected_files = {}
 		for _, url_raw in ipairs(new_selected_files) do
 			local url = Url(url_raw)
@@ -1014,7 +1002,7 @@ function M:entry(job)
 			end
 		end
 		valid_selected_files.state = "on"
-		ya.manager_emit("toggle_all", valid_selected_files)
+		ya.mgr_emit("toggle_all", valid_selected_files)
 	elseif action == TAG_ACTION.filter then
 		local filter_tags = {}
 		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
@@ -1034,56 +1022,33 @@ function M:entry(job)
 			table.insert(filter_tags, key)
 		end
 
-		local feature_flags = get_state(STATE_KEY.feature_flags)
 		local tags_tbl = tostring(get_cwd())
 		local tags_db = get_state(STATE_KEY.tags_database)
 		local tagged_filenames = tags_db[tags_tbl] or {}
-		if not feature_flags or not feature_flags.is_support_new_filter_method then
-			-- TODO: Remove this after v25.3.7
-			local query = ""
-			if filter_mode == FILTER_MODE["and"] then
-				for fname, tags in pairs(tagged_filenames) do
-					if tbl_is_subset(filter_tags, tags) then
-						query = query .. escape_regex(fname) .. "|"
-					end
-				end
-			else
-				for fname, tags in pairs(tagged_filenames) do
-					if tbl_contains_any(tags, filter_tags) then
-						query = query .. escape_regex(fname) .. "|"
-						break
-					end
-				end
-			end
-			query = "^(" .. query:sub(1, -2) .. ")$"
-			ya.manager_emit("filter_do", { query, smart = false, insensitive = false })
-		else
-			-- TODO: Don't remove this after v25.3.7
-			local cwd = get_cwd()
+		local cwd = get_cwd()
 
-			local id = ya.id("ft")
-			local filter_title = "MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")"
-			local _cwd = cwd:into_search(filter_title)
-			ya.mgr_emit("cd", { Url(_cwd) })
-			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
+		local id = ya.id("ft")
+		local filter_title = "MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")"
+		local _cwd = cwd:into_search(filter_title)
+		ya.mgr_emit("cd", { Url(_cwd) })
+		ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
 
-			local files = {}
-			for fname, tags in pairs(tagged_filenames) do
-				if
-					(filter_mode == FILTER_MODE["and"] and tbl_is_subset(filter_tags, tags))
-					or (filter_mode == FILTER_MODE["or"] and tbl_contains_any(tags, filter_tags))
-				then
-					local url = _cwd:join(fname)
-					local cha = fs.cha(url, true)
-					if cha then
-						files[#files + 1] = File({ url = url, cha = cha })
-					end
+		local files = {}
+		for fname, tags in pairs(tagged_filenames) do
+			if
+				(filter_mode == FILTER_MODE["and"] and tbl_is_subset(filter_tags, tags))
+				or (filter_mode == FILTER_MODE["or"] and tbl_contains_any(tags, filter_tags))
+			then
+				local url = _cwd:join(fname)
+				local cha = fs.cha(url, true)
+				if cha then
+					files[#files + 1] = File({ url = url, cha = cha })
 				end
 			end
-
-			ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
-			ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 		end
+
+		ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
+		ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 	elseif action == TAG_ACTION.files_deleted then
 		delete_tags()
 	elseif action == TAG_ACTION.files_transfered then
@@ -1094,11 +1059,10 @@ function M:entry(job)
 			for from, to in pairs(changes) do
 				local from_url = Url(from)
 				local to_url = Url(to)
-				local old_tags_tbl =
-					tostring(type(from_url.parent) == "function" and from_url:parent() or from_url.parent)
-				local new_tags_tbl = tostring(type(to_url.parent) == "function" and to_url:parent() or to_url.parent)
-				local old_fname = tostring(type(from_url.name) == "function" and from_url:name() or from_url.name)
-				local new_fname = tostring(type(to_url.name) == "function" and to_url:name() or to_url.name)
+				local old_tags_tbl = tostring(from_url.parent)
+				local new_tags_tbl = tostring(to_url.parent)
+				local old_fname = tostring(from_url.name)
+				local new_fname = tostring(to_url.name)
 
 				if old_tags_tbl and old_fname and new_fname then
 					if tags_db and old_tags_tbl and tags_db[old_tags_tbl] and new_tags_tbl then
