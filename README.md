@@ -305,12 +305,6 @@ Or you can use `keymap` to replace all other keys
     # or → Filter files which contain at least one of selected tags.
 
     # Filter files/folders by tags
-    # NOTE: For yazi < v25.3.7
-    #       This use a hacky way to filter files, so it may not work if
-    #       there are too many files matched the selected  tags.
-    #       Work just file if there are less than 5000 files.
-    #       Well,  it depends on your system and the length of file's name.
-    # NOTE: For yazi version >= v25.3.7, then this limitation is gone, you can search as many files as you want.
 
     # Filter files/folders by a tag (press any tag key)
     # A tag hint window will show up.
@@ -404,7 +398,7 @@ You can trigger this plugin programmatically:
 	args = args .. " " .. ya.quote("--mode=unite")
 -- another arguments
 -- args = args .. " " .. ya.quote("--tag=q")
-	ya.manager_emit("plugin", {
+	ya.mgr_emit("plugin", {
 		simple_tag._id,
 		args,
 	})
@@ -417,7 +411,7 @@ You can trigger this plugin programmatically:
   for _, url in ipairs(files_to_clear_tags) do
 	  args = args .. " " .. ya.quote(url)
   end
-  ya.manager_emit("plugin", {
+  ya.mgr_emit("plugin", {
 		simple_tag._id,
 	  args,
   })
