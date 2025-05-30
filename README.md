@@ -35,7 +35,7 @@ simple-tag is a Yazi plugin that allows you to add tags to files and folders. Ea
 ## Requirements
 
 > [!IMPORTANT]
-> Minimum supported version: Yazi v25.4.8.
+> Minimum supported version: Yazi v25.5.28.
 
 - [Yazi](https://github.com/sxyazi/yazi)
 - Tested on Linux
@@ -45,6 +45,8 @@ simple-tag is a Yazi plugin that allows you to add tags to files and folders. Ea
 Install the plugin:
 
 ```sh
+ya pkg add boydaihungst/simple-tag
+# or
 ya pack -a boydaihungst/simple-tag
 ```
 
@@ -136,7 +138,7 @@ require("simple-tag"):setup({
 
   -- Set tag colors
   colors = { -- (Optional)
-	  -- Set this same value with `theme.toml` > [manager] > hovered > reversed
+	  -- Set this same value with `theme.toml` > [mgr] > hovered > reversed
 	  -- Default theme use "reversed = true".
 	  -- More info: https://github.com/sxyazi/yazi/blob/077faacc9a84bb5a06c5a8185a71405b0cb3dc8a/yazi-config/preset/theme-dark.toml#L25
 	  reversed = true, -- (Optional)
@@ -201,7 +203,7 @@ Since Yazi prioritizes the first matching key, `prepend_keymap` takes precedence
 Or you can use `keymap` to replace all other keys
 
 ```toml
-[manager]
+[mgr]
   prepend_keymap = [
     # Tagging plugin
 
@@ -398,7 +400,7 @@ You can trigger this plugin programmatically:
 	args = args .. " " .. ya.quote("--mode=unite")
 -- another arguments
 -- args = args .. " " .. ya.quote("--tag=q")
-	ya.mgr_emit("plugin", {
+	ya.emit("plugin", {
 		simple_tag._id,
 		args,
 	})
@@ -411,7 +413,7 @@ You can trigger this plugin programmatically:
   for _, url in ipairs(files_to_clear_tags) do
 	  args = args .. " " .. ya.quote(url)
   end
-  ya.mgr_emit("plugin", {
+  ya.emit("plugin", {
 		simple_tag._id,
 	  args,
   })

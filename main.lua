@@ -1,4 +1,4 @@
---- @since 25.4.8
+--- @since 25.5.28
 
 local PackageName = "simple-tag"
 local M = {}
@@ -548,7 +548,7 @@ function M:setup(opts)
 		end
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.mgr_emit("plugin", {
+		ya.emit("plugin", {
 			self._id,
 			args,
 		})
@@ -559,7 +559,7 @@ function M:setup(opts)
 		changed_files[tostring(payload.from)] = tostring(payload.to)
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.mgr_emit("plugin", {
+		ya.emit("plugin", {
 			self._id,
 			args,
 		})
@@ -572,7 +572,7 @@ function M:setup(opts)
 		end
 		enqueue_task(STATE_KEY.tasks_rename_tags, changed_files)
 		local args = ya.quote(TAG_ACTION.files_transfered)
-		ya.mgr_emit("plugin", {
+		ya.emit("plugin", {
 			self._id,
 			args,
 		})
@@ -585,7 +585,7 @@ function M:setup(opts)
 			table.insert(changed_files, tostring(url))
 		end
 		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
-		ya.mgr_emit("plugin", {
+		ya.emit("plugin", {
 			self._id,
 			args,
 		})
@@ -598,7 +598,7 @@ function M:setup(opts)
 			table.insert(changed_files, tostring(url))
 		end
 		enqueue_task(STATE_KEY.tasks_delete_tags, changed_files)
-		ya.mgr_emit("plugin", {
+		ya.emit("plugin", {
 			self._id,
 			args,
 		})
@@ -759,24 +759,24 @@ function M:redraw()
 	for tag, _ in ordered_pairs(rendered_tags) do
 		if tag ~= "default" and tag ~= "reversed" then
 			rows[#rows + 1] = ui.Row({
-				ui.Line(ui.Span(tag):fg(colors[tag] and colors[tag] or "reset")):align(ui.Line.CENTER),
+				ui.Line(ui.Span(tag):fg(colors[tag] and colors[tag] or "reset")):align(ui.Align.CENTER),
 				ui.Line(ui.Span(icons[tag] or icons.default):fg(colors[tag] and colors[tag] or "reset"))
-					:align(ui.Line.CENTER),
+					:align(ui.Align.CENTER),
 			})
 		end
 	end
 
 	return {
 		ui.Clear(self._area),
-		ui.Border(ui.Border.ALL)
+		ui.Border(ui.Edge.ALL)
 			:area(self._area)
 			:type(ui.Border.ROUNDED)
 			:style(th.spot.border or ui.Style():fg("blue"))
-			:title(ui.Line("Tags"):align(ui.Line.CENTER):style(th.spot.title or ui.Style():fg("blue"))),
+			:title(ui.Line("Tags"):align(ui.Align.CENTER):style(th.spot.title or ui.Style():fg("blue"))),
 		ui.Table(rows)
 			:area(self._area:pad(ui.Pad(1, 1, 1, 1)))
 			:header(
-				ui.Row({ ui.Line("Key"):align(ui.Line.CENTER), ui.Line("Icon"):align(ui.Line.CENTER) })
+				ui.Row({ ui.Line("Key"):align(ui.Align.CENTER), ui.Line("Icon"):align(ui.Align.CENTER) })
 					:style(ui.Style():bold())
 			)
 			:widths({
@@ -823,7 +823,7 @@ end
 
 function M:entry(job)
 	local action = job.args[1]
-	ya.mgr_emit("escape", { visual = true })
+	ya.emit("escape", { visual = true })
 	if
 		action == TAG_ACTION.toggle
 		or action == TAG_ACTION.add
@@ -990,7 +990,7 @@ function M:entry(job)
 		end
 
 		-- clear selection
-		ya.mgr_emit("escape", { select = true })
+		ya.emit("escape", { select = true })
 		local valid_selected_files = {}
 		for _, url_raw in ipairs(new_selected_files) do
 			local url = Url(url_raw)
@@ -1000,7 +1000,7 @@ function M:entry(job)
 			end
 		end
 		valid_selected_files.state = "on"
-		ya.mgr_emit("toggle_all", valid_selected_files)
+		ya.emit("toggle_all", valid_selected_files)
 	elseif action == TAG_ACTION.filter then
 		local filter_tags = {}
 		local inputted_tags = job.args.tags or job.args.tags or job.args.keys or job.args.key
@@ -1028,8 +1028,8 @@ function M:entry(job)
 		local id = ya.id("ft")
 		local filter_title = "MODE=(" .. filter_mode .. ")" .. " Tags=(" .. table.concat(filter_tags, "") .. ")"
 		local _cwd = cwd:into_search(filter_title)
-		ya.mgr_emit("cd", { Url(_cwd) })
-		ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
+		ya.emit("cd", { Url(_cwd) })
+		ya.emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = {} }) })
 
 		local files = {}
 		for fname, tags in pairs(tagged_filenames) do
@@ -1045,8 +1045,8 @@ function M:entry(job)
 			end
 		end
 
-		ya.mgr_emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
-		ya.mgr_emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
+		ya.emit("update_files", { op = fs.op("part", { id = id, url = Url(_cwd), files = files }) })
+		ya.emit("update_files", { op = fs.op("done", { id = id, url = _cwd, cha = Cha({ kind = 16 }) }) })
 	elseif action == TAG_ACTION.files_deleted then
 		delete_tags()
 	elseif action == TAG_ACTION.files_transfered then
