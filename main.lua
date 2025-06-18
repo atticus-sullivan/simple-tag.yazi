@@ -1,4 +1,4 @@
---- @since 25.5.28
+--- @since 25.5.31
 
 local PackageName = "simple-tag"
 local M = {}
@@ -129,6 +129,54 @@ local PUBSUB_KIND = {
 --          │                        Utilities                        │
 --          ╰─────────────────────────────────────────────────────────╯
 
+-- Encode binary string to hex (e.g., "\xED" => "\\xED")
+local function hex_encode(s)
+	return (s:gsub(".", function(c)
+		return string.format("\\x%02X", c:byte())
+	end))
+end
+
+-- Decode hex-encoded string (e.g., "\\xED" => "\xED")
+local function hex_decode(s)
+	return (s:gsub("\\x(%x%x)", function(hex)
+		return string.char(tonumber(hex, 16))
+	end))
+end
+
+local function hex_encode_table(t)
+	local out = {}
+	for k, v in pairs(t) do
+		local new_k = type(k) == "string" and hex_encode(k) or k
+		local new_v
+		if type(v) == "table" then
+			new_v = hex_encode_table(v)
+		elseif type(v) == "string" then
+			new_v = hex_encode(v)
+		else
+			new_v = v
+		end
+		out[new_k] = new_v
+	end
+	return out
+end
+
+local function hex_decode_table(t)
+	local out = {}
+	for k, v in pairs(t) do
+		local new_k = type(k) == "string" and hex_decode(k) or k
+		local new_v
+		if type(v) == "table" then
+			new_v = hex_decode_table(v)
+		elseif type(v) == "string" then
+			new_v = hex_decode(v)
+		else
+			new_v = v
+		end
+		out[new_k] = new_v
+	end
+	return out
+end
+
 local enqueue_task = ya.sync(function(state, task_name, task_data)
 	if not state[task_name] or type(state[task_name]) ~= "table" then
 		state[task_name] = {}
@@ -159,12 +207,6 @@ local function warn(s, ...)
 	ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "warn" })
 end
 
-local function success(s, ...)
-	if not get_state(STATE_KEY.no_notify) then
-		ya.notify({ title = PackageName, content = string.format(s, ...), timeout = 3, level = "info" })
-	end
-end
-
 --- broadcast through pub sub to other instances
 ---@param _ table state
 ---@param pubsub_kind PUBSUB_KIND
@@ -173,10 +215,6 @@ end
 local broadcast = ya.sync(function(_, pubsub_kind, data, to)
 	ps.pub_to(to or 0, pubsub_kind, data)
 end)
-
-local function escape_regex(str)
-	return str:gsub("([%^$()%%.%[%]*+%-?{|}])", "\\%1")
-end
 
 local function pathJoin(...)
 	-- Detect OS path separator ('\' for Windows, '/' for Unix)
@@ -363,7 +401,7 @@ local function read_tags_tbl(tags_tbl)
 	end
 	local tags_tbl_records_encoded = file:read("*all")
 	file:close()
-	local tag_records = ya.json_decode(tags_tbl_records_encoded)
+	local tag_records = hex_decode_table(ya.json_decode(tags_tbl_records_encoded))
 	return tag_records
 end
 
@@ -399,14 +437,16 @@ local function write_tags_db()
 				fail("Can't create save tags file: %s", tags_tbl_save_dir)
 				break
 			else
-				local _, err_write_tags_tbl =
-					fs.write(Url(pathJoin(tags_tbl_save_dir, "tags.json")), ya.json_encode(tags_tbl_records))
+				local _, err_write_tags_tbl = fs.write(
+					Url(pathJoin(tags_tbl_save_dir, "tags.json")),
+					ya.json_encode(hex_encode_table(tags_tbl_records))
+				)
 				if err_write_tags_tbl then
 					fail("Can't save tags to file: %s", tags_tbl_save_dir)
 				end
 			end
 		end
-		broadcast(PUBSUB_KIND.tags_tbl_changed, tags_tbl)
+		broadcast(PUBSUB_KIND.tags_tbl_changed, hex_encode(tags_tbl))
 	end
 	set_state(STATE_KEY.tasks_write_tags_db_running, false)
 	write_tags_db()
@@ -486,6 +526,7 @@ function M:setup(opts)
 	st[STATE_KEY.tasks_delete_tags] = {}
 	st[STATE_KEY.tasks_rename_tags] = {}
 	st[STATE_KEY.tags_database] = {}
+	st[STATE_KEY.save_path] = save_path
 	st[STATE_KEY.ui_mode] = UI_MODE.icon
 	st[STATE_KEY.colors] = {}
 	st[STATE_KEY.icons] = {
@@ -610,6 +651,7 @@ function M:setup(opts)
 	end)
 
 	ps.sub_remote(PUBSUB_KIND.tags_tbl_changed, function(tags_tbl)
+		tags_tbl = hex_decode(tags_tbl)
 		local tags_db = get_state(STATE_KEY.tags_database)
 		if tags_db and tags_tbl and tags_db[tags_tbl] then
 			tags_db[tags_tbl] = read_tags_tbl(tags_tbl)
