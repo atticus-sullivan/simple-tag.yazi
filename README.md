@@ -46,8 +46,6 @@ Install the plugin:
 
 ```sh
 ya pkg add boydaihungst/simple-tag
-# or
-ya pack -a boydaihungst/simple-tag
 ```
 
 > [!IMPORTANT]
