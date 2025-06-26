@@ -852,6 +852,8 @@ local function show_cands_input_tags(title, input_mode, default_input_value)
 		local input_value, input_event = ya.input({
 			title = title,
 			value = default_input_value or "",
+			pos = { "center", w = input_width },
+			-- TODO: remove this after next yazi released
 			position = { "center", w = input_width },
 		})
 		toggle_tags_hints()
