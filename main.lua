@@ -362,7 +362,8 @@ local function tbl_contains_any(large, small)
 end
 
 local render = ya.sync(function()
-	ya.render()
+	--TODO: remove this after next yazi released
+	(ui.render or ya.render)()
 end)
 
 local get_cwd = ya.sync(function()
@@ -751,7 +752,8 @@ local toggle_tags_hints = ya.sync(function(self)
 	else
 		self.children = Modal:children_add(self, 20)
 	end
-	ya.render()
+	--TODO: remove this after next yazi released
+	(ui.render or ya.render)()
 end)
 
 function M:new(area)
